@@ -1071,10 +1071,8 @@ fn is_embed_request(query: Option<&str>) -> bool {
 /// login CSRF). The embed=1 flag alone is NOT sufficient; the path must also
 /// be a booking surface.
 fn is_embeddable_path(path: &str) -> bool {
-    // Modern user/team booking routes (allowlist).
-    if path == "/u"
-        || path.starts_with("/u/")
-        || path == "/team"
+    // Team booking routes (allowlist).
+    if path == "/team"
         || path.starts_with("/team/")
         || path == "/g"
         || path.starts_with("/g/")
@@ -1092,7 +1090,8 @@ fn is_embeddable_path(path: &str) -> bool {
     let mut segs = trimmed.split('/');
     let first = segs.next().unwrap_or("");
     let rest: Vec<&str> = segs.collect();
-    let shape_ok = rest.is_empty() || (rest.len() == 1 && rest[0] == "book");
+    let shape_ok =
+        rest.is_empty() || rest.len() == 1 || (rest.len() == 2 && rest[1] == "book");
     if !shape_ok {
         return false;
     }
@@ -1466,15 +1465,12 @@ pub async fn create_router(pool: SqlitePool, data_dir: PathBuf, secret_key: [u8;
             "/dashboard/bookings/{id}/reschedule",
             get(host_reschedule_slots).post(host_reschedule_booking),
         )
-        .route("/u/{username}", get(user_profile))
-        .route("/u/{username}/{slug}", get(show_slots_for_user))
+        .route("/{username}", get(user_profile))
+        .route("/{username}/{slug}", get(show_slots_for_user))
         .route(
-            "/u/{username}/{slug}/book",
+            "/{username}/{slug}/book",
             get(show_book_form_for_user).post(handle_booking_for_user),
         )
-        // Legacy single-user routes (kept for backward compatibility)
-        .route("/{slug}", get(show_slots))
-        .route("/{slug}/book", get(show_book_form).post(handle_booking))
         .layer(TraceLayer::new_for_http())
         .layer(axum::middleware::from_fn(csrf_cookie_middleware))
         // Defensive HTTP headers on every response (incl. error pages).
@@ -1830,7 +1826,7 @@ async fn dashboard_event_types(
             delete_url => format!("/dashboard/event-types/{}/delete", slug),
             overrides_url => format!("/dashboard/event-types/{}/overrides", slug),
             embed_url => format!("/dashboard/event-types/{}/embed", slug),
-            view_url => if vis != "private" { user.username.as_ref().map(|u| format!("/u/{}/{}", u, slug)) } else { None::<String> },
+            view_url => if vis != "private" { user.username.as_ref().map(|u| format!("/{}/{}", u, slug)) } else { None::<String> },
         });
     }
 
@@ -6872,7 +6868,7 @@ async fn render_invite_management(
                 let invite_url = if let Some(ts) = &team_slug {
                     format!("{}/team/{}/{}?invite={}", base_url, ts, et_slug, token)
                 } else if let Some(un) = &username {
-                    format!("{}/u/{}/{}?invite={}", base_url, un, et_slug, token)
+                    format!("{}/{}/{}?invite={}", base_url, un, et_slug, token)
                 } else {
                     format!("{}?invite={}", base_url, token)
                 };
@@ -7040,7 +7036,7 @@ async fn send_invite_bulk(
             let invite_url = if let Some(ts) = &team_slug {
                 format!("{}/team/{}/{}?invite={}", base_url, ts, slug, token)
             } else if let Some(un) = &username {
-                format!("{}/u/{}/{}?invite={}", base_url, un, slug, token)
+                format!("{}/{}/{}?invite={}", base_url, un, slug, token)
             } else {
                 String::new()
             };
@@ -7208,7 +7204,7 @@ async fn generate_quick_link(
     let invite_url = if let Some(ts) = &team_slug {
         format!("{}/team/{}/{}?invite={}", base_url, ts, et_slug, token)
     } else if let Some(un) = &username {
-        format!("{}/u/{}/{}?invite={}", base_url, un, et_slug, token)
+        format!("{}/{}/{}?invite={}", base_url, un, et_slug, token)
     } else {
         format!("{}?invite={}", base_url, token)
     };
@@ -7448,7 +7444,7 @@ async fn embed_page(
     let username = user.username.clone().filter(|u| !u.is_empty());
     let has_username = username.is_some();
     let cal_path = match &username {
-        Some(u) => format!("/u/{}/{}", u, et_slug),
+        Some(u) => format!("/{}/{}", u, et_slug),
         None => String::new(),
     };
 

@@ -48,7 +48,7 @@
 </div>
 <div style="text-align: center; margin-top: 1.5rem;">
   {% if team_slug %}<a href="/team/{{ team_slug }}/{{ event_type.slug }}{{ embed_qs_q | default('') }}" style="color: var(--accent); font-size: 0.9rem;">&larr; {{ t("confirmed-book-another") }}</a>
-  {% elif username %}<a href="/u/{{ username }}/{{ event_type.slug }}{{ embed_qs_q | default('') }}" style="color: var(--accent); font-size: 0.9rem;">&larr; {{ t("confirmed-book-another") }}</a>{% endif %}
+  {% elif username %}<a href="/{{ username }}/{{ event_type.slug }}{{ embed_qs_q | default('') }}" style="color: var(--accent); font-size: 0.9rem;">&larr; {{ t("confirmed-book-another") }}</a>{% endif %}
 </div>
 <script>
 (function() {

@@ -1495,7 +1495,7 @@
       if (selected.length === 0) { urlBox.style.display = 'none'; return; }
       var combined = [owner].concat(selected.map(function(u) { return u.username; })).join('+');
       var base = location.origin || (location.protocol + '//' + location.host);
-      urlInput.value = base + '/u/' + combined + '/' + slug;
+      urlInput.value = base + '/' + combined + '/' + slug;
       urlBox.style.display = '';
     }
 
