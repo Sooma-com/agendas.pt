@@ -1072,11 +1072,7 @@ fn is_embed_request(query: Option<&str>) -> bool {
 /// be a booking surface.
 fn is_embeddable_path(path: &str) -> bool {
     // Team booking routes (allowlist).
-    if path == "/team"
-        || path.starts_with("/team/")
-        || path == "/g"
-        || path.starts_with("/g/")
-    {
+    if path == "/team" || path.starts_with("/team/") || path == "/g" || path.starts_with("/g/") {
         return true;
     }
     // Legacy single-user booking pages: only `/{slug}` and `/{slug}/book`.
@@ -1090,8 +1086,7 @@ fn is_embeddable_path(path: &str) -> bool {
     let mut segs = trimmed.split('/');
     let first = segs.next().unwrap_or("");
     let rest: Vec<&str> = segs.collect();
-    let shape_ok =
-        rest.is_empty() || rest.len() == 1 || (rest.len() == 2 && rest[1] == "book");
+    let shape_ok = rest.is_empty() || rest.len() == 1 || (rest.len() == 2 && rest[1] == "book");
     if !shape_ok {
         return false;
     }
@@ -7436,8 +7431,8 @@ async fn embed_page(
         None => return Redirect::to("/dashboard/event-types").into_response(),
     };
 
-    // Username for the cal link path: /u/{username}/{slug}. `users.username` is
-    // nullable (migration 003) and all /u/{username} lookups match on it, so a
+    // Username for the cal link path: /{username}/{slug}. `users.username` is
+    // nullable (migration 003) and all /{username} lookups match on it, so a
     // user without a username can't produce a working embed link. Rather than
     // emit a snippet pointing at a 404, render the page with a notice and no
     // snippet (has_username = false).
@@ -12555,6 +12550,7 @@ async fn get_custom_colors(pool: &SqlitePool) -> (String, String, String, String
     }
 }
 
+#[allow(dead_code)]
 async fn show_slots(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
@@ -12587,7 +12583,7 @@ async fn show_slots(
         None => return Html("Event type not found.".to_string()),
     };
 
-    // Block private event types on legacy route (use /u/ or /team/ routes with invite token instead)
+    // Block private event types on legacy route (use / or /team/ routes with invite token instead)
     if visibility == "private" || visibility == "internal" {
         return Html("This event type requires an invite link.".to_string());
     }
@@ -12740,6 +12736,7 @@ impl BookQuery {
     }
 }
 
+#[allow(dead_code)]
 async fn show_book_form(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
@@ -12926,6 +12923,7 @@ struct BookForm {
     captcha_token: Option<String>,
 }
 
+#[allow(dead_code)]
 async fn handle_booking(
     State(state): State<Arc<AppState>>,
     headers: axum::http::HeaderMap,
@@ -20632,9 +20630,9 @@ mod tests {
     #[test]
     fn is_embeddable_path_allows_booking_surfaces_only() {
         // Public booking surfaces — embeddable.
-        assert!(is_embeddable_path("/u/alice"));
-        assert!(is_embeddable_path("/u/alice/intro"));
-        assert!(is_embeddable_path("/u/alice/intro/book"));
+        assert!(is_embeddable_path("/alice"));
+        assert!(is_embeddable_path("/alice/intro"));
+        assert!(is_embeddable_path("/alice/intro/book"));
         assert!(is_embeddable_path("/team/sales"));
         assert!(is_embeddable_path("/team/sales/intro"));
         assert!(is_embeddable_path("/g/sales"));
@@ -20661,12 +20659,9 @@ mod tests {
         assert!(!is_embedded_booking_request("/auth/login", Some("embed=1")));
         assert!(!is_embedded_booking_request("/dashboard", Some("embed=1")));
         // Booking surface with the flag — enabled.
-        assert!(is_embedded_booking_request(
-            "/u/alice/intro",
-            Some("embed=1")
-        ));
+        assert!(is_embedded_booking_request("/alice/intro", Some("embed=1")));
         // Booking surface without the flag — not embed mode.
-        assert!(!is_embedded_booking_request("/u/alice/intro", None));
+        assert!(!is_embedded_booking_request("/alice/intro", None));
     }
 
     #[test]
@@ -21605,11 +21600,10 @@ mod tests {
             })
             .expect("slots.html should render");
 
-        // basePath must be /u/alice/intro, not something with { in it
+        // basePath must be /alice/intro, not something with { in it
         assert!(
-            rendered.contains("&#x2f;u&#x2f;alice&#x2f;intro")
-                || rendered.contains("/u/alice/intro"),
-            "basePath should be /u/alice/intro"
+            rendered.contains("&#x2f;alice&#x2f;intro") || rendered.contains("/alice/intro"),
+            "basePath should be /alice/intro"
         );
 
         // rescheduleBase must be empty, not a JSON object
@@ -21673,7 +21667,7 @@ mod tests {
             })
             .expect("slots.html should render");
 
-        // basePath should be the reschedule URL, not the normal /u/alice/intro
+        // basePath should be the reschedule URL, not the normal /alice/intro
         assert!(
             rendered.contains("reschedule&#x2f;abc123") || rendered.contains("reschedule/abc123"),
             "basePath should be the reschedule URL when reschedule_base is set"
@@ -22298,7 +22292,7 @@ mod tests {
     #[tokio::test]
     async fn public_profile_returns_200() {
         let (app, _, _, _) = setup_test_app().await;
-        let response = app.oneshot(get("/u/testuser")).await.unwrap();
+        let response = app.oneshot(get("/testuser")).await.unwrap();
         assert_eq!(response.status(), 200);
         let body = body_string(response).await;
         assert!(
@@ -22310,7 +22304,7 @@ mod tests {
     #[tokio::test]
     async fn public_slots_page_returns_200() {
         let (app, _, _, _) = setup_test_app().await;
-        let response = app.oneshot(get("/u/testuser/test-meeting")).await.unwrap();
+        let response = app.oneshot(get("/testuser/test-meeting")).await.unwrap();
         assert_eq!(response.status(), 200);
         let body = body_string(response).await;
         assert!(
@@ -22337,7 +22331,7 @@ mod tests {
     #[tokio::test]
     async fn nonexistent_profile_returns_404_or_empty() {
         let (app, _, _, _) = setup_test_app().await;
-        let response = app.oneshot(get("/u/nonexistent")).await.unwrap();
+        let response = app.oneshot(get("/nonexistent")).await.unwrap();
         // Should return 404 or a page indicating no user found
         let status = response.status();
         assert!(
@@ -22645,7 +22639,7 @@ mod tests {
         );
         let response = app
             .oneshot(post_form_unauthed(
-                "/u/testuser/test-meeting/book",
+                "/testuser/test-meeting/book",
                 csrf,
                 &body,
             ))
@@ -22686,7 +22680,7 @@ mod tests {
         );
         let response = app
             .oneshot(post_form_unauthed(
-                "/u/testuser/test-meeting/book",
+                "/testuser/test-meeting/book",
                 csrf,
                 &body,
             ))
@@ -22727,7 +22721,7 @@ mod tests {
         );
         let response = app
             .oneshot(post_form_unauthed(
-                "/u/testuser/test-meeting/book",
+                "/testuser/test-meeting/book",
                 csrf,
                 &body,
             ))
@@ -24123,15 +24117,6 @@ mod tests {
 
     // --- Legacy routes ---
 
-    #[tokio::test]
-    async fn legacy_slot_route_returns_200() {
-        let (app, _, _, _) = setup_test_app().await;
-        let response = app.oneshot(get("/test-meeting")).await.unwrap();
-        assert_eq!(response.status(), 200);
-        let body = body_string(response).await;
-        assert!(body.contains("Test Meeting"));
-    }
-
     // --- Private event types ---
 
     #[tokio::test]
@@ -24150,7 +24135,7 @@ mod tests {
             .await
             .unwrap();
 
-        let response = app.oneshot(get("/u/testuser")).await.unwrap();
+        let response = app.oneshot(get("/testuser")).await.unwrap();
         let body = body_string(response).await;
         assert!(
             !body.contains("Secret Meeting"),
@@ -24198,7 +24183,7 @@ mod tests {
         );
         let response = app
             .oneshot(post_form_unauthed(
-                "/u/testuser/test-meeting/book",
+                "/testuser/test-meeting/book",
                 csrf,
                 &body,
             ))
@@ -24230,7 +24215,7 @@ mod tests {
             .await
             .unwrap();
 
-        let response = app.oneshot(get("/u/testuser/test-meeting")).await.unwrap();
+        let response = app.oneshot(get("/testuser/test-meeting")).await.unwrap();
         let status = response.status();
         let body = body_string(response).await;
         assert!(
@@ -24312,7 +24297,7 @@ mod tests {
         );
         let response = app
             .oneshot(post_form_unauthed(
-                "/u/testuser/test-meeting/book",
+                "/testuser/test-meeting/book",
                 csrf,
                 &body,
             ))
@@ -24432,7 +24417,7 @@ mod tests {
         );
         let response = app
             .oneshot(post_form_unauthed(
-                "/u/testuser/test-meeting/book",
+                "/testuser/test-meeting/book",
                 csrf,
                 &body,
             ))
@@ -24475,7 +24460,7 @@ mod tests {
         );
         let response = app
             .oneshot(post_form_unauthed(
-                "/u/testuser/test-meeting/book",
+                "/testuser/test-meeting/book",
                 csrf,
                 &body,
             ))
@@ -24688,7 +24673,7 @@ mod tests {
         );
         let response = app
             .oneshot(post_form_unauthed(
-                "/u/testuser/test-meeting/book",
+                "/testuser/test-meeting/book",
                 csrf,
                 &body,
             ))
@@ -24746,7 +24731,7 @@ mod tests {
         );
         let response = app
             .oneshot(post_form_unauthed(
-                "/u/testuser/test-meeting/book",
+                "/testuser/test-meeting/book",
                 csrf,
                 &body,
             ))
@@ -24884,7 +24869,7 @@ mod tests {
 
         let response = app
             .oneshot(get(&format!(
-                "/u/testuser/test-meeting/book?date={}&time=10:00",
+                "/testuser/test-meeting/book?date={}&time=10:00",
                 date_str
             )))
             .await
@@ -24944,7 +24929,7 @@ mod tests {
         );
         let response = app
             .oneshot(post_form_unauthed(
-                "/u/testuser/test-meeting/book",
+                "/testuser/test-meeting/book",
                 csrf,
                 &body,
             ))
@@ -25019,7 +25004,7 @@ mod tests {
     async fn nonexistent_event_type_slug_returns_not_found() {
         let (app, _, _, _) = setup_test_app().await;
         let response = app
-            .oneshot(get("/u/testuser/nonexistent-slug"))
+            .oneshot(get("/testuser/nonexistent-slug"))
             .await
             .unwrap();
         let status = response.status();
@@ -25156,38 +25141,6 @@ mod tests {
         assert_eq!(client_id.unwrap(), "calrs");
     }
 
-    // --- Legacy booking POST ---
-
-    #[tokio::test]
-    async fn legacy_booking_post_creates_booking() {
-        let (app, pool, _, _) = setup_test_app().await;
-
-        let now = Utc::now().with_timezone(&Tz::UTC).naive_local();
-        let mut next_monday = now.date() + Duration::days(1);
-        while next_monday.weekday() != chrono::Weekday::Mon {
-            next_monday += Duration::days(1);
-        }
-        let date_str = next_monday.format("%Y-%m-%d").to_string();
-
-        let csrf = "test-csrf-legacy-book";
-        let body = format!(
-            "_csrf={}&date={}&time=11%3A00&name=Legacy+Guest&email=legacy%40test.com&notes=",
-            csrf, date_str
-        );
-        let response = app
-            .oneshot(post_form_unauthed("/test-meeting/book", csrf, &body))
-            .await
-            .unwrap();
-        assert_eq!(response.status(), 200);
-
-        let count: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM bookings WHERE guest_email = 'legacy@test.com'")
-                .fetch_one(&pool)
-                .await
-                .unwrap();
-        assert_eq!(count.0, 1, "Legacy booking should be created");
-    }
-
     // --- Booking with timezone ---
 
     #[tokio::test]
@@ -25208,7 +25161,7 @@ mod tests {
         );
         let response = app
             .oneshot(post_form_unauthed(
-                "/u/testuser/test-meeting/book",
+                "/testuser/test-meeting/book",
                 csrf,
                 &body,
             ))
@@ -25231,7 +25184,7 @@ mod tests {
     async fn slots_with_month_param() {
         let (app, _, _, _) = setup_test_app().await;
         let response = app
-            .oneshot(get("/u/testuser/test-meeting?month=2026-06"))
+            .oneshot(get("/testuser/test-meeting?month=2026-06"))
             .await
             .unwrap();
         assert_eq!(response.status(), 200);
@@ -25245,7 +25198,7 @@ mod tests {
     async fn slots_with_tz_param() {
         let (app, _, _, _) = setup_test_app().await;
         let response = app
-            .oneshot(get("/u/testuser/test-meeting?tz=Europe/Paris"))
+            .oneshot(get("/testuser/test-meeting?tz=Europe/Paris"))
             .await
             .unwrap();
         assert_eq!(response.status(), 200);
@@ -25659,7 +25612,7 @@ mod tests {
         );
         let response = app
             .oneshot(post_form_unauthed(
-                "/u/testuser/test-meeting/book",
+                "/testuser/test-meeting/book",
                 csrf,
                 &body,
             ))
@@ -25692,7 +25645,7 @@ mod tests {
         );
         let response = app
             .oneshot(post_form_unauthed(
-                "/u/testuser/test-meeting/book",
+                "/testuser/test-meeting/book",
                 csrf,
                 &body,
             ))
@@ -25983,7 +25936,7 @@ mod tests {
 
     #[test]
     fn booking_form_paths_get_relaxed_csp() {
-        assert!(is_booking_form_path("/u/alice/intro/book"));
+        assert!(is_booking_form_path("/alice/intro/book"));
         assert!(is_booking_form_path("/team/sales/demo/book"));
         assert!(is_booking_form_path("/intro/book"));
     }
@@ -25993,9 +25946,9 @@ mod tests {
         assert!(!is_booking_form_path("/"));
         assert!(!is_booking_form_path("/dashboard"));
         assert!(!is_booking_form_path("/dashboard/admin"));
-        assert!(!is_booking_form_path("/u/alice/intro"));
+        assert!(!is_booking_form_path("/alice/intro"));
         assert!(!is_booking_form_path("/booking/cancel/sometoken"));
-        assert!(!is_booking_form_path("/u/alice/bookkeeping"));
+        assert!(!is_booking_form_path("/alice/bookkeeping"));
     }
 
     #[test]
