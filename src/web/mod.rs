@@ -7495,9 +7495,9 @@ async fn org_accent_hex(pool: &SqlitePool) -> String {
         Some((ref theme, ref custom)) if theme == "custom" => custom
             .clone()
             .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| "#2563eb".to_string()),
+            .unwrap_or_else(|| "#d53832".to_string()),
         Some((ref theme, _)) => preset_accent(theme).to_string(),
-        None => "#2563eb".to_string(),
+        None => "#d53832".to_string(),
     }
 }
 
@@ -12458,7 +12458,7 @@ fn preset_accent(theme: &str) -> &'static str {
         "tokyo-night" => "#7a5af5",
         "vates" => "#be1621",
         // "default" (blue) and anything unknown
-        _ => "#2563eb",
+        _ => "#d53832",
     }
 }
 
@@ -12503,8 +12503,8 @@ async fn build_theme_css(pool: &SqlitePool) -> String {
             .unwrap_or(None);
     match row {
         Some((ref theme, ref ca, ref cah, ref cb, ref cs, ref ct)) if theme == "custom" => {
-            let accent = ca.as_deref().unwrap_or("#2563eb");
-            let accent_hover = cah.as_deref().unwrap_or("#1d4ed8");
+            let accent = ca.as_deref().unwrap_or("#d53832");
+            let accent_hover = cah.as_deref().unwrap_or("#b02d28");
             let bg = cb.as_deref().unwrap_or("#f4f4f5");
             let surface = cs.as_deref().unwrap_or("#ffffff");
             let text = ct.as_deref().unwrap_or("#18181b");
@@ -12534,15 +12534,15 @@ async fn get_custom_colors(pool: &SqlitePool) -> (String, String, String, String
             .unwrap_or(None);
     match row {
         Some((a, ah, bg, s, t)) => (
-            a.unwrap_or_else(|| "#2563eb".to_string()),
-            ah.unwrap_or_else(|| "#1d4ed8".to_string()),
+            a.unwrap_or_else(|| "#d53832".to_string()),
+            ah.unwrap_or_else(|| "#b02d28".to_string()),
             bg.unwrap_or_else(|| "#f4f4f5".to_string()),
             s.unwrap_or_else(|| "#ffffff".to_string()),
             t.unwrap_or_else(|| "#18181b".to_string()),
         ),
         None => (
-            "#2563eb".to_string(),
-            "#1d4ed8".to_string(),
+            "#d53832".to_string(),
+            "#b02d28".to_string(),
             "#f4f4f5".to_string(),
             "#ffffff".to_string(),
             "#18181b".to_string(),
@@ -14367,8 +14367,8 @@ async fn admin_update_accent(
         .unwrap_or_else(|| "default".to_string());
 
     if theme == "custom" {
-        let accent = form.custom_accent.as_deref().unwrap_or("#2563eb");
-        let accent_hover = form.custom_accent_hover.as_deref().unwrap_or("#1d4ed8");
+        let accent = form.custom_accent.as_deref().unwrap_or("#d53832");
+        let accent_hover = form.custom_accent_hover.as_deref().unwrap_or("#b02d28");
         let bg = form.custom_bg.as_deref().unwrap_or("#f4f4f5");
         let surface = form.custom_surface.as_deref().unwrap_or("#ffffff");
         let text = form.custom_text.as_deref().unwrap_or("#18181b");
