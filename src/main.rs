@@ -27,8 +27,12 @@ use clap::{Parser, Subcommand};
 use directories::ProjectDirs;
 use std::path::PathBuf;
 
+/// Full version string: the crate version plus the git commit it was built
+/// from, e.g. "1.14.0 (aa97e56)". Set by build.rs at compile time.
+const CALRS_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (", env!("CALRS_GIT_SHA"), ")");
+
 #[derive(Parser)]
-#[command(name = "calrs", about = "Fast, self-hostable scheduling", version)]
+#[command(name = "calrs", about = "Fast, self-hostable scheduling", version = CALRS_VERSION)]
 struct Cli {
     /// Custom data directory
     #[arg(long, env = "CALRS_DATA_DIR", global = true)]
