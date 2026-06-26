@@ -8706,6 +8706,19 @@ async fn team_profile_page(
         })
         .collect();
 
+    // Other public teams, for the "wrong topic? switch team" cross-link.
+    let other_teams: Vec<(String, String)> = sqlx::query_as(
+        "SELECT name, slug FROM teams WHERE visibility = 'public' AND id != ? ORDER BY name",
+    )
+    .bind(&team_id)
+    .fetch_all(&state.pool)
+    .await
+    .unwrap_or_default();
+    let other_teams_ctx: Vec<minijinja::Value> = other_teams
+        .iter()
+        .map(|(name, slug)| context! { name => name, slug => slug })
+        .collect();
+
     let tmpl = match state.templates.get_template("team_profile.html") {
         Ok(t) => t,
         Err(e) => return internal_error_html("template render", &e),
@@ -8742,6 +8755,7 @@ async fn team_profile_page(
             team_has_avatar => team_avatar_path.is_some(),
             team_initials => compute_initials(&team_name),
             members => members_ctx,
+            other_teams => other_teams_ctx,
             event_types => et_ctx,
             invite_token => invite_token_for_template,
             company_link => state.company_link.read().await.clone(),

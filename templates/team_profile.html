@@ -49,18 +49,9 @@
     {% endif %}
   </div>
   <div style="padding: 1.25rem 2rem 1.5rem;">
-    {% if members %}
-    <div>
-      <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.2rem;">{{ t("team-meet-the-team") }}</div>
-      <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.7rem;">{{ t("team-prefer-someone") }}</div>
-      <div style="display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem;">
-        {% for m in members %}
-        {% if m.username %}<a href="/{{ m.username }}" class="member-link" style="display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: inherit;">{% else %}<div style="display: flex; align-items: center; gap: 0.5rem;">{% endif %}
-          <span style="width: 32px; height: 32px; border-radius: 50%; background: var(--accent-subtle); color: var(--accent); display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.7rem; overflow: hidden; flex-shrink: 0;">{% if m.has_avatar %}<img src="/avatar/{{ m.id }}" alt="" style="width: 100%; height: 100%; object-fit: cover;">{% else %}{{ m.initials }}{% endif %}</span>
-          <span class="member-name" style="font-size: 0.875rem; color: var(--text);">{{ m.name }}</span>
-        {% if m.username %}</a>{% else %}</div>{% endif %}
-        {% endfor %}
-      </div>
+    {% if other_teams %}
+    <div style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.55;">
+      O assunto não é <strong style="color: var(--text);">{{ team_name }}</strong>? Agende com a equipa {% for o in other_teams %}<a href="/team/{{ o.slug }}" style="color: var(--accent); text-decoration: none; font-weight: 600;">{{ o.name }}</a>{% if not loop.last %}{% if loop.revindex == 2 %} ou {% else %}, {% endif %}{% endif %}{% endfor %}.
     </div>
     {% endif %}
   </div>
