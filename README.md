@@ -17,7 +17,7 @@ Agendas.pt is a scheduling platform: pull free/busy from your calendar, publish 
 
 Highlights:
 
-- **Calendar sync** — CalDAV (Nextcloud, BlueMind, Fastmail, iCloud, SOGo, Radicale…), with write-back of confirmed bookings.
+- **Calendar sync with Sooma Calendars** — with write-back of confirmed bookings.
 - **Availability engine** — free/busy from rules + synced events + existing bookings, with buffers, minimum notice, and RRULE expansion.
 - **Event types** — personal and team, public / internal / private, with tokenized invite links.
 - **Teams** — round-robin (least-busy) or collective scheduling.
