@@ -1320,7 +1320,10 @@
 
   function buildWeekView() {
     var dates = getWeekDates();
+    ensureMonthsForWeek(dates, function() { renderWeekView(dates); });
+  }
 
+  function renderWeekView(dates) {
     // Update shared header title and nav for week view
     var titleEl = document.getElementById('cal-header-title');
     if (titleEl) {
@@ -1399,9 +1402,7 @@
       prevBtn.addEventListener('click', function(e) {
         e.preventDefault();
         weekOffset -= 7;
-        var targetDate = new Date(dates[0].date);
-        targetDate.setDate(targetDate.getDate() - 7);
-        ensureMonthLoaded(targetDate, function() { buildWeekView(); });
+        buildWeekView();
       });
       nav.appendChild(prevBtn);
     } else {
@@ -1418,30 +1419,19 @@
     nextBtn.addEventListener('click', function(e) {
       e.preventDefault();
       weekOffset += 7;
-      var targetDate = new Date(dates[6].date);
-      targetDate.setDate(targetDate.getDate() + 1);
-      ensureMonthLoaded(targetDate, function() { buildWeekView(); });
+      buildWeekView();
     });
     nav.appendChild(nextBtn);
   }
 
   var weekOffset = 0;
 
-  // Override getWeekDates to use offset
+  // Override getWeekDates to use offset, anchored on *today* so week
+  // navigation is independent of which month's data is currently loaded
+  // (fixes empty days when a week straddles a month boundary).
   getWeekDates = function() {
-    var parts = monthYear.split('-');
-    var year = parseInt(parts[0], 10);
-    var month = parseInt(parts[1], 10);
-
-    var todayParts = todayDate.split('-');
-    var startDate;
-    if (parseInt(todayParts[0]) === year && parseInt(todayParts[1]) === month) {
-      startDate = new Date(year, month - 1, parseInt(todayParts[2]));
-    } else {
-      startDate = new Date(year, month - 1, 1);
-    }
-
-    // Go to Monday of that week
+    var tp = todayDate.split('-');
+    var startDate = new Date(parseInt(tp[0], 10), parseInt(tp[1], 10) - 1, parseInt(tp[2], 10));
     var dow = startDate.getDay();
     var mondayOffset = dow === 0 ? -6 : 1 - dow;
     startDate.setDate(startDate.getDate() + mondayOffset + weekOffset);
@@ -1455,6 +1445,40 @@
     }
     return dates;
   };
+
+  // Slot data is fetched per month. Track loaded months and merge any that a
+  // given week spans, without disturbing the month-grid view's own state.
+  var loadedMonths = {};
+  loadedMonths[monthYear] = true;
+  function ymOf(d) {
+    return d.getFullYear() + '-' + (d.getMonth() < 9 ? '0' : '') + (d.getMonth() + 1);
+  }
+  function loadMonthData(ym, cb) {
+    if (loadedMonths[ym]) { cb(); return; }
+    var url = basePath + '?month=' + ym;
+    if (guestTz) url += '&tz=' + encodeURIComponent(guestTz);
+    if (inviteToken) url += '&invite=' + encodeURIComponent(inviteToken);
+    url += embedSuffix;
+    fetch(url).then(function(r) { return r.text(); }).then(function(html) {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var el = doc.getElementById('calendar-data');
+      if (el) {
+        var nd = JSON.parse(el.textContent);
+        for (var k in nd.slotData) { slotData[k] = nd.slotData[k]; }
+        for (var k in nd.availableDates) { availableDates[k] = nd.availableDates[k]; }
+        loadedMonths[ym] = true;
+      }
+      cb();
+    }).catch(function() { cb(); });
+  }
+  // Ensure every month the given week spans is loaded, then run cb.
+  function ensureMonthsForWeek(dates, cb) {
+    var m1 = ymOf(dates[0].date);
+    var m2 = ymOf(dates[6].date);
+    loadMonthData(m1, function() {
+      if (m2 !== m1) { loadMonthData(m2, cb); } else { cb(); }
+    });
+  }
 
   // Ensure data is loaded for the month containing targetDate
   function ensureMonthLoaded(targetDate, cb) {
