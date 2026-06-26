@@ -8597,6 +8597,7 @@ async fn redirect_team_link_to_team(
 
 async fn team_profile_page(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     optional_auth: crate::auth::OptionalAuthUser,
     Path(team_slug): Path<String>,
     Query(query): Query<std::collections::HashMap<String, String>>,
@@ -8670,8 +8671,8 @@ async fn team_profile_page(
             .unwrap_or_default()
         };
 
-    let members: Vec<(String, String, Option<String>)> = sqlx::query_as(
-        "SELECT u.id, u.name, u.avatar_path FROM users u \
+    let members: Vec<(String, String, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT u.id, u.name, u.avatar_path, u.language FROM users u \
          JOIN team_members tm ON tm.user_id = u.id \
          WHERE tm.team_id = ? AND u.enabled = 1 \
          ORDER BY u.name",
@@ -8681,9 +8682,14 @@ async fn team_profile_page(
     .await
     .unwrap_or_default();
 
+    // Default the page language to a team member's preference (mirrors the
+    // personal profile using the host's language), falling back to the guest's
+    // Accept-Language header.
+    let team_lang = members.iter().find_map(|(_, _, _, l)| l.clone());
+
     let members_ctx: Vec<minijinja::Value> = members
         .iter()
-        .map(|(id, name, ap)| {
+        .map(|(id, name, ap, _lang)| {
             context! {
                 id => id,
                 name => name,
@@ -8718,8 +8724,10 @@ async fn team_profile_page(
         String::new()
     };
 
+    let lang = crate::i18n::resolve(team_lang.as_deref(), &headers);
     Html(
         tmpl.render(context! {
+            lang => lang,
             team_id => team_id,
             team_name => team_name,
             team_slug => team_slug,

@@ -174,7 +174,10 @@ base-powered-by = Desenvolvido com
 # Profile (templates/profile.html)
 
 profile-pick-event-type-invite = Escolha o tipo de reunião que pretende marcar.
-profile-no-event-type = Ainda não há tipos de evento disponíveis.
+profile-no-event-type = Ainda não há reuniões disponíveis aqui — volte em breve.
+team-meet-the-team = Conheça a equipa
+team-members-one = membro
+team-members-other = membros
 
 # Month and weekday names + per-locale date format patterns.
 # Used by server-side date formatters in src/i18n.rs.

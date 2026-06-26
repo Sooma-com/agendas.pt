@@ -174,7 +174,10 @@ base-powered-by = Powered by
 # Profile (templates/profile.html)
 
 profile-pick-event-type-invite = Pick an event type to book a time.
-profile-no-event-type = No event types available yet.
+profile-no-event-type = No bookable meetings here yet — check back soon.
+team-meet-the-team = Meet the team
+team-members-one = member
+team-members-other = members
 
 # Month and weekday names + per-locale date format patterns.
 # Used by server-side date formatters in src/i18n.rs.
