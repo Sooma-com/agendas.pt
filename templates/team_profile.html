@@ -6,10 +6,8 @@
   .host-bio a:hover { opacity: 0.8; }
   .host-bio code { background: rgba(255,255,255,0.15); padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.85em; }
   .description-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .bio-clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-  .bio-clamp.expanded { display: block; -webkit-line-clamp: unset; overflow: visible; }
-  .bio-toggle { display: none; background: none; border: none; padding: 0; margin-top: 0.35rem; color: #fff; opacity: 0.9; font: inherit; font-size: 0.8rem; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
-  .bio-toggle:hover { opacity: 1; }
+  .bio-toggle { background: none; border: none; padding: 0; margin: 0; color: #fff; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; white-space: nowrap; }
+  .bio-toggle:hover { opacity: 0.85; }
   .et-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
   .et-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
   .et-card:hover .et-arrow { transform: translateX(4px); }
@@ -31,7 +29,7 @@
         <h1 style="margin-bottom: 0; color: #fff;">{{ team_name }}</h1>
       </div>
     </div>
-    {% if team_description %}<div class="host-bio" style="color: rgba(255,255,255,0.85); font-size: 0.9rem; margin-top: 0.5rem;"><div class="bio-clamp" id="team-bio">{{ team_description|safe }}</div><button type="button" class="bio-toggle" id="team-bio-toggle" aria-expanded="false"></button></div>{% endif %}
+    {% if team_description %}<div class="host-bio" style="color: rgba(255,255,255,0.85); font-size: 0.9rem; margin-top: 0.5rem;"><div id="team-bio">{{ team_description|safe }}</div></div>{% endif %}
     {% if members %}
     <div style="display: flex; align-items: center; margin-top: 1rem; gap: 0.25rem;">
       {% for m in members %}{% if loop.index <= 8 %}
@@ -98,21 +96,57 @@
 <script>
 (function () {
   var bio = document.getElementById('team-bio');
-  var btn = document.getElementById('team-bio-toggle');
-  if (!bio || !btn) return;
+  if (!bio) return;
   var pt = (document.documentElement.lang || '').toLowerCase().indexOf('pt') === 0;
   var more = pt ? 'Ver mais' : 'Show more';
   var less = pt ? 'Ver menos' : 'Show less';
-  function overflowing() { return bio.scrollHeight - bio.clientHeight > 2; }
-  if (overflowing()) {
-    btn.textContent = more;
-    btn.style.display = 'inline-block';
-    btn.addEventListener('click', function () {
-      var ex = bio.classList.toggle('expanded');
-      btn.textContent = ex ? less : more;
-      btn.setAttribute('aria-expanded', ex ? 'true' : 'false');
-    });
+  var fullHTML = bio.innerHTML;
+  var fullText = (bio.textContent || '').replace(/\s+/g, ' ').trim();
+  var MAXLINES = 3;
+
+  function maxHeight() {
+    var cs = getComputedStyle(bio);
+    var lh = parseFloat(cs.lineHeight);
+    if (!lh || isNaN(lh)) lh = parseFloat(cs.fontSize) * 1.4;
+    return lh * MAXLINES + 1;
   }
+  function makeBtn(label, handler) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'bio-toggle'; b.textContent = label;
+    b.addEventListener('click', handler);
+    return b;
+  }
+  function expand() {
+    bio.innerHTML = fullHTML;
+    bio.appendChild(document.createTextNode(' '));
+    bio.appendChild(makeBtn(less, collapse));
+  }
+  function renderCollapsed(n) {
+    bio.textContent = fullText.slice(0, n).replace(/\s+\S*$/, '').replace(/[\s.,;:]+$/, '');
+    bio.appendChild(document.createTextNode('… '));
+    bio.appendChild(makeBtn(more, expand));
+  }
+  function collapse() {
+    bio.innerHTML = fullHTML;
+    var mh = maxHeight();
+    if (bio.scrollHeight <= mh) return; // fits in 3 lines, no toggle
+    var lo = 0, hi = fullText.length, best = 0;
+    while (lo <= hi) {
+      var mid = (lo + hi) >> 1;
+      renderCollapsed(mid);
+      if (bio.scrollHeight <= mh) { best = mid; lo = mid + 1; } else { hi = mid - 1; }
+    }
+    renderCollapsed(best);
+  }
+  collapse();
+  var t;
+  window.addEventListener('resize', function () {
+    clearTimeout(t);
+    t = setTimeout(function () {
+      var btn = bio.querySelector('.bio-toggle');
+      if (btn && btn.textContent === more) collapse();
+    }, 150);
+  });
 })();
 </script>
 {% endblock %}
