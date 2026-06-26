@@ -324,7 +324,7 @@
       line-height: 1.5;
     }
 
-    .logo { text-align: left; margin-bottom: 1.25rem; }
+    .logo { text-align: left; margin-bottom: 1.25rem; padding-left: 2rem; }
     .logo img { max-height: 40px; max-width: 200px; object-fit: contain; }
     /* Dark mode: whiten the uploaded logo so a single light/colour logo works on dark too. */
     html.dark .logo img { filter: brightness(0) invert(1); }
@@ -378,6 +378,7 @@
     @media (max-width: 480px) {
       body { padding: 1.5rem 0.75rem; }
       .card { padding: 1.25rem; }
+      .logo { padding-left: 1.25rem; }
       .week-nav { flex-wrap: wrap; gap: 0.5rem; }
       .week-nav .range { font-size: 0.8rem; }
     }
