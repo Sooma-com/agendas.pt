@@ -173,7 +173,7 @@ base-powered-by = Desenvolvido com
 
 # Profile (templates/profile.html)
 
-profile-pick-event-type-invite = Escolha um tipo de evento para marcar um horário.
+profile-pick-event-type-invite = Escolha o tipo de reunião que pretende marcar.
 profile-no-event-type = Ainda não há tipos de evento disponíveis.
 
 # Month and weekday names + per-locale date format patterns.
