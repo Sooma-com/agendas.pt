@@ -176,6 +176,7 @@ base-powered-by = Powered by
 profile-pick-event-type-invite = Pick an event type to book a time.
 profile-no-event-type = No bookable meetings here yet — check back soon.
 team-meet-the-team = Meet the team
+team-prefer-someone = Prefer someone specific? Pick a name.
 team-members-one = member
 team-members-other = members
 

@@ -176,6 +176,7 @@ base-powered-by = Desenvolvido com
 profile-pick-event-type-invite = Escolha o tipo de reunião que pretende marcar.
 profile-no-event-type = Ainda não há reuniões disponíveis aqui — volte em breve.
 team-meet-the-team = Conheça a equipa
+team-prefer-someone = Prefere falar com alguém específico? Escolha o nome.
 team-members-one = membro
 team-members-other = membros
 

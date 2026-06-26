@@ -8671,8 +8671,14 @@ async fn team_profile_page(
             .unwrap_or_default()
         };
 
-    let members: Vec<(String, String, Option<String>, Option<String>)> = sqlx::query_as(
-        "SELECT u.id, u.name, u.avatar_path, u.language FROM users u \
+    let members: Vec<(
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT u.id, u.name, u.avatar_path, u.language, u.username FROM users u \
          JOIN team_members tm ON tm.user_id = u.id \
          WHERE tm.team_id = ? AND u.enabled = 1 \
          ORDER BY u.name",
@@ -8685,16 +8691,17 @@ async fn team_profile_page(
     // Default the page language to a team member's preference (mirrors the
     // personal profile using the host's language), falling back to the guest's
     // Accept-Language header.
-    let team_lang = members.iter().find_map(|(_, _, _, l)| l.clone());
+    let team_lang = members.iter().find_map(|(_, _, _, l, _)| l.clone());
 
     let members_ctx: Vec<minijinja::Value> = members
         .iter()
-        .map(|(id, name, ap, _lang)| {
+        .map(|(id, name, ap, _lang, username)| {
             context! {
                 id => id,
                 name => name,
                 has_avatar => ap.is_some(),
                 initials => compute_initials(name),
+                username => username,
             }
         })
         .collect();
