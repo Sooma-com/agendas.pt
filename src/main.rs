@@ -161,6 +161,9 @@ async fn main() -> Result<()> {
             tokio::spawn(web::run_reminder_loop(reminder_pool, reminder_key));
 
             let router = web::create_router(pool, data_dir, secret_key).await;
+            // Treat `/path` and `/path/` the same: trim a trailing slash before routing
+            // so e.g. `/manuel` and `/manuel/` both resolve instead of 404ing.
+            let app = tower_http::normalize_path::NormalizePath::trim_trailing_slash(router);
             let addr = std::net::SocketAddr::from((host, port));
             tracing::info!("calrs server listening on {}", addr);
             let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -180,9 +183,15 @@ async fn main() -> Result<()> {
                 tracing::info!("Shutdown signal received, stopping gracefully...");
             };
 
-            axum::serve(listener, router)
+            {
+                use axum::ServiceExt;
+                axum::serve(
+                    listener,
+                    ServiceExt::<axum::extract::Request>::into_make_service(app),
+                )
                 .with_graceful_shutdown(shutdown)
                 .await?;
+            }
         }
     }
 
