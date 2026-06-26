@@ -98,8 +98,8 @@
   var bio = document.getElementById('team-bio');
   if (!bio) return;
   var pt = (document.documentElement.lang || '').toLowerCase().indexOf('pt') === 0;
-  var more = pt ? 'Ver mais' : 'Show more';
-  var less = pt ? 'Ver menos' : 'Show less';
+  var more = pt ? '[mais]' : '[more]';
+  var less = pt ? '[menos]' : '[less]';
   var fullHTML = bio.innerHTML;
   var fullText = (bio.textContent || '').replace(/\s+/g, ' ').trim();
   var MAXLINES = 3;
