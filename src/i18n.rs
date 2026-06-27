@@ -18,6 +18,10 @@ use unic_langid::LanguageIdentifier;
 const SUPPORTED_LANGS: &[(&str, &str, &str)] = &[
     ("en", "English", include_str!("../i18n/en/main.ftl")),
     ("pt", "Português", include_str!("../i18n/pt/main.ftl")),
+    ("es", "Español", include_str!("../i18n/es/main.ftl")),
+    ("fr", "Français", include_str!("../i18n/fr/main.ftl")),
+    ("de", "Deutsch", include_str!("../i18n/de/main.ftl")),
+    ("it", "Italiano", include_str!("../i18n/it/main.ftl")),
 ];
 
 const DEFAULT_LANG: &str = "en";
@@ -278,8 +282,8 @@ mod tests {
     fn cookie_unsupported_falls_back_to_accept_language() {
         let mut h = HeaderMap::new();
         h.insert("accept-language", "pt-PT,pt;q=0.9".parse().unwrap());
-        // "de" is no longer shipped, so the cookie is ignored.
-        h.insert("cookie", "calrs_lang=de".parse().unwrap());
+        // "ja" isn't shipped, so the cookie is ignored.
+        h.insert("cookie", "calrs_lang=ja".parse().unwrap());
         assert_eq!(detect_from_headers(&h), "pt");
     }
 
@@ -332,8 +336,8 @@ mod tests {
     #[test]
     fn month_year_falls_back_to_english_for_unknown_lang() {
         let d = NaiveDate::from_ymd_opt(2026, 4, 1).unwrap();
-        // Unknown locale (e.g. "de", no longer shipped) falls through to English.
-        assert_eq!(format_month_year(d, "de"), "April 2026");
+        // Unknown locale (e.g. "ja", not shipped) falls through to English.
+        assert_eq!(format_month_year(d, "ja"), "April 2026");
     }
 
     #[test]
