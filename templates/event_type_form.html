@@ -39,7 +39,7 @@
 
   {% if not editing and teams is defined and teams %}
   <div class="form-group">
-    <label for="team_id">Team <span class="hint">(optional — leave empty for personal event type)</span></label>
+    <label for="team_id">Assign to <span class="hint">(yourself, or one of your teams)</span></label>
     <select id="team_id" name="team_id" style="padding: 0.625rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.925rem; font-family: inherit; background: var(--surface); color: var(--text); width: 100%;">
       <option value="">Personal</option>
       {% for t in teams %}
