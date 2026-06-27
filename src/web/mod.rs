@@ -1412,6 +1412,13 @@ pub async fn create_router(pool: SqlitePool, data_dir: PathBuf, secret_key: [u8;
         .route("/logo", get(serve_logo))
         .route("/accent.css", get(serve_accent_css))
         .route("/brand-logo", get(serve_brand_logo))
+        .route("/favicon.ico", get(favicon_ico))
+        .route("/favicon-16x16.png", get(favicon_16))
+        .route("/favicon-32x32.png", get(favicon_32))
+        .route("/apple-touch-icon.png", get(favicon_apple))
+        .route("/android-chrome-192x192.png", get(favicon_android_192))
+        .route("/android-chrome-512x512.png", get(favicon_android_512))
+        .route("/site.webmanifest", get(favicon_manifest))
         .route("/embed.js", get(serve_embed_js))
         .route("/fonts/inter-latin.woff2", get(serve_font_inter_latin))
         .route(
@@ -15445,6 +15452,38 @@ async fn serve_brand_logo() -> impl IntoResponse {
         .body(axum::body::Body::from(BRAND_LOGO))
         .unwrap_or_else(|_| axum::response::Response::new(axum::body::Body::empty()))
         .into_response()
+}
+
+// Favicon / web-app icon set (embedded brand assets served at root paths).
+fn favicon_response(bytes: &'static [u8], content_type: &str) -> axum::response::Response {
+    axum::response::Response::builder()
+        .status(200)
+        .header("Content-Type", content_type)
+        .header("Cache-Control", "public, max-age=604800")
+        .body(axum::body::Body::from(bytes))
+        .unwrap_or_else(|_| axum::response::Response::new(axum::body::Body::empty()))
+        .into_response()
+}
+async fn favicon_ico() -> impl IntoResponse {
+    favicon_response(include_bytes!("../../assets/favicon/favicon.ico"), "image/x-icon")
+}
+async fn favicon_16() -> impl IntoResponse {
+    favicon_response(include_bytes!("../../assets/favicon/favicon-16x16.png"), "image/png")
+}
+async fn favicon_32() -> impl IntoResponse {
+    favicon_response(include_bytes!("../../assets/favicon/favicon-32x32.png"), "image/png")
+}
+async fn favicon_apple() -> impl IntoResponse {
+    favicon_response(include_bytes!("../../assets/favicon/apple-touch-icon.png"), "image/png")
+}
+async fn favicon_android_192() -> impl IntoResponse {
+    favicon_response(include_bytes!("../../assets/favicon/android-chrome-192x192.png"), "image/png")
+}
+async fn favicon_android_512() -> impl IntoResponse {
+    favicon_response(include_bytes!("../../assets/favicon/android-chrome-512x512.png"), "image/png")
+}
+async fn favicon_manifest() -> impl IntoResponse {
+    favicon_response(include_bytes!("../../assets/favicon/site.webmanifest"), "application/manifest+json")
 }
 
 /// Serves the embed runtime that consumers paste into their own sites. It's
