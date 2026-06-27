@@ -1445,7 +1445,9 @@
     var tm = mondayOf(parseInt(tp[0], 10), parseInt(tp[1], 10), parseInt(tp[2], 10));
     var fm = mondayOf(parseInt(fp[0], 10), parseInt(fp[1], 10), parseInt(fp[2], 10));
     var off = Math.round((fm - tm) / (7 * 86400000));
-    if (off > 0) weekOffset = off;
+    // weekOffset is measured in DAYS elsewhere (getWeekDates adds it to a date;
+    // the prev/next buttons step it by 7), so convert whole weeks to days.
+    if (off > 0) weekOffset = off * 7;
   })();
 
   // Override getWeekDates to use offset, anchored on *today* so week
