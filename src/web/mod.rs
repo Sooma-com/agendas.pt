@@ -4742,11 +4742,13 @@ fn user_content_langs(user: &crate::models::User) -> (String, Vec<String>) {
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect();
-    let active: Vec<String> = CONTENT_LANGS
-        .iter()
-        .filter(|c| **c == default || set.contains(**c))
-        .map(|c| c.to_string())
-        .collect();
+    // Default language first, then the rest in display order.
+    let mut active: Vec<String> = vec![default.clone()];
+    for c in CONTENT_LANGS {
+        if c != default.as_str() && set.contains(c) {
+            active.push(c.to_string());
+        }
+    }
     (default, active)
 }
 
