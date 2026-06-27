@@ -32,7 +32,7 @@
         <div class="et-meta">
           {{ et.duration_min }}min
           {% if et.is_team %} &middot; {% if et.scheduling_mode == "collective" %}collective{% else %}round robin{% endif %}{% endif %}
-          &middot; /{% if et.is_team %}team/{{ et.team_slug }}{% else %}u/{{ username }}{% endif %}/{{ et.slug }}
+          &middot; /{% if et.is_team %}team/{{ et.team_slug }}{% else %}{{ username }}{% endif %}/{{ et.slug }}
         </div>
       </div>
       <div class="et-actions">
