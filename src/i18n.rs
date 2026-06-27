@@ -111,10 +111,29 @@ pub fn detect_from_accept_language(header: Option<&str>) -> &'static str {
     DEFAULT_LANG
 }
 
-/// Convenience: pull `Accept-Language` from a `HeaderMap`.
+/// Resolve a guest's language from request headers. An explicit visitor choice
+/// — the `calrs_lang` cookie set by the on-page language switcher / `?lang=`
+/// override — wins over the browser's `Accept-Language`. This is the single
+/// choke point every public page calls, so the cookie applies site-wide.
 pub fn detect_from_headers(headers: &HeaderMap) -> &'static str {
+    if let Some(code) = lang_cookie(headers) {
+        return code;
+    }
     let header = headers.get("accept-language").and_then(|v| v.to_str().ok());
     detect_from_accept_language(header)
+}
+
+/// Read a supported language from the `calrs_lang` cookie, if present.
+fn lang_cookie(headers: &HeaderMap) -> Option<&'static str> {
+    let raw = headers.get("cookie").and_then(|v| v.to_str().ok())?;
+    for part in raw.split(';') {
+        if let Some(val) = part.trim().strip_prefix("calrs_lang=") {
+            if let Some((code, _, _)) = SUPPORTED_LANGS.iter().find(|(c, _, _)| *c == val) {
+                return Some(code);
+            }
+        }
+    }
+    None
 }
 
 /// Whether a given language code matches one of the bundled locales.
@@ -269,6 +288,30 @@ mod tests {
     #[test]
     fn all_unsupported_falls_back_to_default() {
         assert_eq!(detect_from_accept_language(Some("ja,zh,ko")), "en");
+    }
+
+    #[test]
+    fn cookie_overrides_accept_language() {
+        let mut h = HeaderMap::new();
+        h.insert("accept-language", "pt-PT,pt;q=0.9".parse().unwrap());
+        h.insert("cookie", "foo=bar; calrs_lang=en; baz=1".parse().unwrap());
+        assert_eq!(detect_from_headers(&h), "en");
+    }
+
+    #[test]
+    fn cookie_unsupported_falls_back_to_accept_language() {
+        let mut h = HeaderMap::new();
+        h.insert("accept-language", "pt-PT,pt;q=0.9".parse().unwrap());
+        // "de" is no longer shipped, so the cookie is ignored.
+        h.insert("cookie", "calrs_lang=de".parse().unwrap());
+        assert_eq!(detect_from_headers(&h), "pt");
+    }
+
+    #[test]
+    fn no_cookie_uses_accept_language() {
+        let mut h = HeaderMap::new();
+        h.insert("accept-language", "en-US,en".parse().unwrap());
+        assert_eq!(detect_from_headers(&h), "en");
     }
 
     #[test]
