@@ -136,30 +136,6 @@ fn lang_cookie(headers: &HeaderMap) -> Option<&'static str> {
     None
 }
 
-/// Whether a given language code matches one of the bundled locales.
-pub fn is_supported(code: &str) -> bool {
-    SUPPORTED_LANGS.iter().any(|(c, _, _)| *c == code)
-}
-
-/// Resolve the language to use for rendering. The user's saved preference
-/// (when set and supported) wins over `Accept-Language`. Pass `None` for
-/// `user_pref` to skip straight to header detection (e.g. for guests).
-pub fn resolve(user_pref: Option<&str>, headers: &HeaderMap) -> &'static str {
-    if let Some(pref) = user_pref {
-        if let Some((code, _, _)) = SUPPORTED_LANGS.iter().find(|(c, _, _)| *c == pref) {
-            return code;
-        }
-    }
-    detect_from_headers(headers)
-}
-
-/// All supported languages with their native display labels, for settings dropdowns.
-pub fn supported_with_labels() -> impl Iterator<Item = (&'static str, &'static str)> {
-    SUPPORTED_LANGS
-        .iter()
-        .map(|(code, label, _)| (*code, *label))
-}
-
 fn weekday_key(d: Weekday) -> &'static str {
     match d {
         Weekday::Mon => "common-weekday-long-mon",
