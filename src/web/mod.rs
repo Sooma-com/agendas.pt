@@ -7793,7 +7793,6 @@ async fn create_group_event_type(
     };
 
     let first_slot_only = form.first_slot_only.as_deref() == Some("on");
-    let follow_default = form.follow_default_availability.as_deref() == Some("on");
     let timezone = normalize_event_type_tz(form.timezone.as_deref(), &user.timezone);
     let cancel_notice_min =
         parse_notice_to_minutes(&form.cancel_notice_value, &form.cancel_notice_unit);
