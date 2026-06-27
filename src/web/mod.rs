@@ -4725,31 +4725,93 @@ async fn new_event_type_form(
 /// The content languages calrs ships, in display order.
 const CONTENT_LANGS: [&str; 6] = ["en", "pt", "es", "fr", "de", "it"];
 
-/// A user's default content language plus the ordered set of active languages
-/// (always including the default).
-fn user_content_langs(user: &crate::models::User) -> (String, Vec<String>) {
-    let default = user
-        .language
-        .as_deref()
+/// Ordered content languages from a default preference + active CSV: the
+/// default first, then the rest in display order.
+fn content_langs(default_pref: Option<&str>, active_csv: Option<&str>) -> Vec<String> {
+    let default = default_pref
         .filter(|s| crate::i18n::is_supported(s))
-        .unwrap_or("pt")
-        .to_string();
-    let set: std::collections::HashSet<String> = user
-        .active_languages
-        .as_deref()
+        .unwrap_or("pt");
+    let set: std::collections::HashSet<&str> = active_csv
         .unwrap_or("")
         .split(',')
-        .map(|s| s.trim().to_string())
+        .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .collect();
-    // Default language first, then the rest in display order.
-    let mut active: Vec<String> = vec![default.clone()];
+    let mut active: Vec<String> = vec![default.to_string()];
     for c in CONTENT_LANGS {
-        if c != default.as_str() && set.contains(c) {
+        if c != default && set.contains(c) {
             active.push(c.to_string());
         }
     }
-    (default, active)
+    active
+}
+
+/// A user's default content language plus the ordered set of active languages
+/// (always including the default).
+fn user_content_langs(user: &crate::models::User) -> (String, Vec<String>) {
+    let langs = content_langs(user.language.as_deref(), user.active_languages.as_deref());
+    (langs[0].clone(), langs)
+}
+
+/// Build the public language-switcher options [{code,label}] for a set of
+/// language codes, deduped and ordered by display order.
+fn page_lang_options(codes: &[String]) -> Vec<minijinja::Value> {
+    let labels: std::collections::HashMap<&str, &str> =
+        crate::i18n::supported_with_labels().collect();
+    let mut out = Vec::new();
+    for code in CONTENT_LANGS {
+        if codes.iter().any(|c| c == code) {
+            out.push(context! { code => code, label => labels.get(code).copied().unwrap_or(code) });
+        }
+    }
+    out
+}
+
+/// Languages a single event type offers (default + any translations).
+async fn event_page_langs(pool: &SqlitePool, et_id: &str) -> Vec<String> {
+    let def: String =
+        sqlx::query_scalar("SELECT COALESCE(default_lang, 'pt') FROM event_types WHERE id = ?")
+            .bind(et_id)
+            .fetch_one(pool)
+            .await
+            .unwrap_or_else(|_| "pt".to_string());
+    let trs: Vec<(String,)> =
+        sqlx::query_as("SELECT lang FROM event_type_translations WHERE event_type_id = ?")
+            .bind(et_id)
+            .fetch_all(pool)
+            .await
+            .unwrap_or_default();
+    let mut codes = vec![def];
+    for (l,) in trs {
+        codes.push(l);
+    }
+    codes
+}
+
+/// Languages a team's enabled event types collectively offer.
+async fn team_page_langs(pool: &SqlitePool, team_id: &str) -> Vec<String> {
+    let defs: Vec<(Option<String>,)> = sqlx::query_as(
+        "SELECT DISTINCT default_lang FROM event_types WHERE team_id = ? AND enabled = 1",
+    )
+    .bind(team_id)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+    let trs: Vec<(String,)> = sqlx::query_as(
+        "SELECT DISTINCT etl.lang FROM event_type_translations etl JOIN event_types et ON et.id = etl.event_type_id WHERE et.team_id = ? AND et.enabled = 1",
+    )
+    .bind(team_id)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+    let mut codes: Vec<String> = Vec::new();
+    for (d,) in defs {
+        codes.push(d.unwrap_or_else(|| "pt".to_string()));
+    }
+    for (l,) in trs {
+        codes.push(l);
+    }
+    codes
 }
 
 fn form_title_for<'a>(form: &'a EventTypeForm, lang: &str) -> Option<&'a str> {
@@ -9261,9 +9323,11 @@ async fn team_profile_page(
     };
 
     let lang = crate::i18n::detect_from_headers(&headers);
+    let page_languages = page_lang_options(&team_page_langs(&state.pool, &team_id).await);
     Html(
         tmpl.render(context! {
             lang => lang,
+            page_languages => page_languages,
             team_id => team_id,
             team_name => team_name,
             team_slug => team_slug,
@@ -9566,6 +9630,7 @@ async fn show_group_slots(
     };
     let rendered = tmpl
         .render(context! {
+            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -9736,6 +9801,7 @@ async fn show_group_book_form(
     let captcha = captcha::CaptchaVars::from_config(&*state.captcha_config.read().await);
     let rendered = tmpl
         .render(context! {
+            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -10238,6 +10304,15 @@ async fn user_profile(
     // UI preference) so title/description and chrome render in the guest's lang.
     let lang = crate::i18n::detect_from_headers(&headers);
 
+    let (host_lang, host_active): (Option<String>, Option<String>) =
+        sqlx::query_as("SELECT language, active_languages FROM users WHERE id = ?")
+            .bind(&user_id)
+            .fetch_one(&state.pool)
+            .await
+            .unwrap_or((None, None));
+    let page_languages =
+        page_lang_options(&content_langs(host_lang.as_deref(), host_active.as_deref()));
+
     let event_types: Vec<(String, String, Option<String>, i32)> = sqlx::query_as(
         "SELECT et.slug,
                 COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
@@ -10289,6 +10364,7 @@ async fn user_profile(
             username => username,
             event_types => et_ctx,
             company_link => state.company_link.read().await.clone(),
+            page_languages => page_languages,
             lang,
         })
         .unwrap_or_else(|e| internal_error_body("template render", &e)),
@@ -10480,6 +10556,7 @@ async fn show_dynamic_group_slots(
     };
     Html(
         tmpl.render(context! {
+            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -10560,7 +10637,7 @@ async fn show_dynamic_group_book_form(
     .unwrap_or(None);
 
     let (
-        _,
+        et_id,
         et_slug,
         et_title,
         et_desc,
@@ -10609,6 +10686,7 @@ async fn show_dynamic_group_book_form(
     let captcha = captcha::CaptchaVars::from_config(&*state.captcha_config.read().await);
     Html(
         tmpl.render(context! {
+            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -11207,6 +11285,7 @@ async fn show_slots_for_user(
     };
     let rendered = tmpl
         .render(context! {
+            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -11374,6 +11453,7 @@ async fn show_book_form_for_user(
     let captcha = captcha::CaptchaVars::from_config(&*state.captcha_config.read().await);
     let rendered = tmpl
         .render(context! {
+            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -13311,6 +13391,7 @@ async fn show_slots(
     };
     let rendered = tmpl
         .render(context! {
+            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -13435,6 +13516,7 @@ async fn show_book_form(
     let captcha = captcha::CaptchaVars::from_config(&*state.captcha_config.read().await);
     let rendered = tmpl
         .render(context! {
+            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -17313,6 +17395,7 @@ async fn guest_reschedule_slots(
     };
     let rendered = tmpl
         .render(context! {
+            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {

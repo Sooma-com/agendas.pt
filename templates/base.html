@@ -449,7 +449,7 @@
        content. */
     body { padding: 1rem 0.75rem; background: transparent; display: block; min-height: 0; }
     .container { max-width: none; }
-    .logo, .powered, .theme-toggle, #theme-toggle, .lang-toggle, #lang-toggle { display: none !important; }
+    .logo, .powered, .theme-toggle, #theme-toggle, .lang-switch, #lang-switch { display: none !important; }
     {% if embed_brand %}
     /* Apply the brand accent in both light and dark mode. The `html.dark`
        selector is needed to out-specify base.html's `html.dark` accent rule;
@@ -504,26 +504,35 @@
     </style>
     {% endblock %}
     {% block lang_toggle %}
-        <select id="lang-toggle" class="lang-toggle" aria-label="Language">
-          <option value="en">English</option>
-          <option value="pt">Português</option>
-          <option value="es">Español</option>
-          <option value="fr">Français</option>
-          <option value="de">Deutsch</option>
-          <option value="it">Italiano</option>
-        </select>
+        {% if page_languages is defined and page_languages and page_languages | length > 1 %}
+        <div id="lang-switch" class="lang-switch">
+          <button type="button" class="lang-switch-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Language" title="Language">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+          </button>
+          <div class="lang-switch-menu" role="listbox" hidden>
+            {% for l in page_languages %}
+            <button type="button" role="option" class="lang-switch-item{% if l.code == lang %} active{% endif %}" data-lang="{{ l.code }}">{{ l.label }}</button>
+            {% endfor %}
+          </div>
+        </div>
         <style>
-      .lang-toggle { position: fixed; top: 0.7rem; right: 3rem; z-index: 10; font-family: inherit; font-size: 0.72rem; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.2rem 0.4rem; cursor: pointer; }
-      .lang-toggle:hover { color: var(--text); border-color: var(--border-hover, var(--border)); }
+      .lang-switch { position: fixed; top: 0.7rem; right: 3rem; z-index: 10; }
+      .lang-switch-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text-muted); cursor: pointer; line-height: 0; transition: color 0.15s ease, background 0.15s ease; }
+      .lang-switch-btn:hover { color: var(--text); background: var(--surface-hover, rgba(127,127,127,0.12)); }
+      .lang-switch-menu { position: absolute; top: calc(100% + 4px); right: 0; min-width: 9rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.25rem; display: flex; flex-direction: column; gap: 1px; }
+      .lang-switch-item { text-align: left; border: none; background: none; cursor: pointer; font-family: inherit; font-size: 0.825rem; color: var(--text); padding: 0.4rem 0.6rem; border-radius: calc(var(--radius) - 2px); white-space: nowrap; }
+      .lang-switch-item:hover { background: var(--surface-hover, rgba(127,127,127,0.12)); }
+      .lang-switch-item.active { color: var(--accent); font-weight: 600; }
     </style>
+        {% endif %}
         <script>
         (function () {
           var SUP = ['en', 'pt', 'es', 'fr', 'de', 'it'];
           function setLangCookie(l) {
             document.cookie = 'calrs_lang=' + l + '; path=/; max-age=31536000; samesite=lax' + (location.protocol === 'https:' ? '; secure' : '');
           }
-          // ?lang=<code> override: persist as a cookie, drop the param, reload
-          // so the server re-renders in the chosen language.
+          // ?lang=<code> override works on any public page (even without the
+          // switcher): persist as a cookie, drop the param, reload.
           try {
             var p = new URLSearchParams(location.search);
             var q = (p.get('lang') || '').toLowerCase();
@@ -535,14 +544,22 @@
               return;
             }
           } catch (e) {}
-          var sel = document.getElementById('lang-toggle');
-          if (!sel) return;
-          var cur = (document.documentElement.lang || 'en').toLowerCase().slice(0, 2);
-          if (SUP.indexOf(cur) === -1) cur = 'en';
-          sel.value = cur;
-          sel.addEventListener('change', function () {
-            setLangCookie(sel.value);
-            location.reload();
+          var box = document.getElementById('lang-switch');
+          if (!box) return;
+          var btn = box.querySelector('.lang-switch-btn');
+          var menu = box.querySelector('.lang-switch-menu');
+          btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var willOpen = menu.hidden;
+            menu.hidden = !willOpen;
+            btn.setAttribute('aria-expanded', String(willOpen));
+          });
+          document.addEventListener('click', function () { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); });
+          box.querySelectorAll('.lang-switch-item').forEach(function (it) {
+            it.addEventListener('click', function () {
+              setLangCookie(it.getAttribute('data-lang'));
+              location.reload();
+            });
           });
         })();
         </script>
