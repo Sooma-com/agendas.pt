@@ -145,7 +145,7 @@ action-error-page-title = Fehler bei der Buchungsaktion
 
 # Host-initiated reschedule (booking_host_reschedule.html)
 
-host-resched-page-title = Buchung verschieben — calrs
+host-resched-page-title = Buchung verschieben — Agendas.pt
 host-resched-heading = Buchung verschieben
 host-resched-subtitle = { $guest } erhält eine E-Mail mit der Bitte, einen neuen Termin auszuwählen.
 host-resched-currently = Aktuell:
@@ -205,7 +205,7 @@ common-format-long-date = { $weekday }, { $day }. { $month } { $year }
 
 # Email signatures and shared bits (src/email.rs)
 
-email-signature = — calrs
+email-signature = — Agendas.pt
 email-action-reschedule = Verschieben
 email-action-cancel-booking = Buchung stornieren
 

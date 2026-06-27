@@ -146,7 +146,7 @@ action-error-page-title = Erro na ação da marcação
 
 # Host-initiated reschedule (booking_host_reschedule.html)
 
-host-resched-page-title = Reagendar marcação — calrs
+host-resched-page-title = Reagendar marcação — Agendas.pt
 host-resched-heading = Reagendar marcação
 host-resched-subtitle = Isto irá enviar a { $guest } um e-mail a pedir que escolha um novo horário.
 host-resched-currently = Atualmente:
@@ -211,7 +211,7 @@ common-format-long-date = { $weekday }, { $day } de { $month } de { $year }
 
 # Email signatures and shared bits (src/email.rs)
 
-email-signature = — calrs
+email-signature = — Agendas.pt
 email-action-reschedule = Reagendar
 email-action-cancel-booking = Cancelar marcação
 

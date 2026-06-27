@@ -145,7 +145,7 @@ action-error-page-title = Błąd akcji rezerwacji
 
 # Host-initiated reschedule (booking_host_reschedule.html)
 
-host-resched-page-title = Zmień termin rezerwacji — calrs
+host-resched-page-title = Zmień termin rezerwacji — Agendas.pt
 host-resched-heading = Zmień termin rezerwacji
 host-resched-subtitle = Spowoduje to wysłanie do { $guest } e-maila z prośbą o wybranie nowego terminu.
 host-resched-currently = Obecnie:
@@ -207,7 +207,7 @@ common-format-long-date = { $weekday }, { $day } { $month } { $year }
 
 # Email signatures and shared bits (src/email.rs)
 
-email-signature = — calrs
+email-signature = — Agendas.pt
 email-action-reschedule = Zmień termin
 email-action-cancel-booking = Anuluj rezerwację
 

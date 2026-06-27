@@ -6,7 +6,7 @@
 
 <div class="card">
   <h1>{% if editing %}Edit calendar source{% else %}Connect a calendar{% endif %}</h1>
-  <p class="subtitle">{% if editing %}Update the connection. Leave the password blank to keep the existing one. After changing the URL or username, run a sync to refresh the discovered calendar list.{% else %}Connect a CalDAV server or Microsoft Exchange (EWS) so calrs can check availability when guests book meetings.{% endif %}</p>
+  <p class="subtitle">{% if editing %}Update the connection. Leave the password blank to keep the existing one. After changing the URL or username, run a sync to refresh the discovered calendar list.{% else %}Connect a CalDAV server or Microsoft Exchange (EWS) so Sooma can check availability when guests book meetings.{% endif %}</p>
 
   {% if error %}
     <div class="error" style="margin-top: 1rem;">{{ error }}</div>
@@ -68,7 +68,7 @@
       <div id="help-google" class="provider-help-text" style="display: none;">
         <strong>Google Calendar</strong>: Connect via OAuth2. No password needed.<br>
         {% if google_oauth2_configured %}
-        Click the button below to authorize calrs to access your Google Calendar.
+        Click the button below to authorize Sooma to access your Google Calendar.
         {% else %}
         <span style="color: var(--error-text);">Google Calendar integration is not configured yet. Ask your administrator to set up Google OAuth2 credentials in the admin panel.</span>
         {% endif %}
@@ -81,7 +81,7 @@
       </div>
       <div id="help-other" class="provider-help-text" style="display: none;">
         Enter your CalDAV server's <strong>DAV root URL</strong> — not a specific calendar or public link.<br>
-        calrs will auto-discover your calendars via PROPFIND (RFC 4791).
+        Sooma will auto-discover your calendars via PROPFIND (RFC 4791).
       </div>
     </div>
 

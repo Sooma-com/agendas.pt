@@ -146,7 +146,7 @@ action-error-page-title = Booking action error
 
 # Host-initiated reschedule (booking_host_reschedule.html)
 
-host-resched-page-title = Reschedule booking — calrs
+host-resched-page-title = Reschedule booking — Agendas.pt
 host-resched-heading = Reschedule booking
 host-resched-subtitle = This will send { $guest } an email asking them to pick a new time.
 host-resched-currently = Currently:
@@ -214,7 +214,7 @@ common-format-long-date = { $weekday }, { $month } { $day }, { $year }
 
 # Email signatures and shared bits (src/email.rs)
 
-email-signature = — calrs
+email-signature = — Agendas.pt
 email-action-reschedule = Reschedule
 email-action-cancel-booking = Cancel booking
 

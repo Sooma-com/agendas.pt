@@ -339,7 +339,7 @@ document.querySelectorAll('input[type="color"]').forEach(function(picker) {
     </div>
     <div class="form-group">
       <label>Client ID</label>
-      <input type="text" name="oidc_client_id" value="{{ oidc_client_id }}" placeholder="calrs">
+      <input type="text" name="oidc_client_id" value="{{ oidc_client_id }}" placeholder="Sooma">
     </div>
     <div class="form-group">
       <label>Client secret <span class="hint">(leave empty to keep current)</span></label>
@@ -420,7 +420,7 @@ document.querySelectorAll('input[type="color"]').forEach(function(picker) {
     {% if jitsi_base_url %}&middot; Base URL: <span style="color: var(--text-muted);">{{ jitsi_base_url }}</span>{% endif %}
   </div>
   <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.75rem;">
-    When an event type's location is set to "Jitsi (auto-generated room)", calrs builds a fresh room URL per booking by appending the pattern below to your Jitsi base URL. No external API call is needed.
+    When an event type's location is set to "Jitsi (auto-generated room)", Sooma builds a fresh room URL per booking by appending the pattern below to your Jitsi base URL. No external API call is needed.
   </p>
   <form method="post" action="/dashboard/admin/jitsi">
     <div class="form-group">
@@ -465,7 +465,7 @@ document.querySelectorAll('input[type="color"]').forEach(function(picker) {
     {% if meeting_webhook_url %}&middot; URL: <span style="color: var(--text-muted);">{{ meeting_webhook_url }}</span>{% endif %}
   </div>
   <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.75rem;">
-    When an event type's location is set to "Webhook (custom provider)", calrs POSTs the booking payload to this URL on confirmation and expects a JSON body <code>{"url": "https://..."}</code> back.
+    When an event type's location is set to "Webhook (custom provider)", Sooma POSTs the booking payload to this URL on confirmation and expects a JSON body <code>{"url": "https://..."}</code> back.
   </p>
   <form method="post" action="/dashboard/admin/meeting-webhook">
     <div class="form-group">
@@ -483,7 +483,7 @@ document.querySelectorAll('input[type="color"]').forEach(function(picker) {
         <option value="none"{% if meeting_webhook_auth_mode == "none" %} selected{% endif %}>None</option>
         <option value="hmac"{% if meeting_webhook_auth_mode == "hmac" %} selected{% endif %}>HMAC-SHA256 (X-Calrs-Signature header)</option>
       </select>
-      <span style="font-size: 0.8rem; color: var(--text-muted);">With HMAC, calrs sends <code>X-Calrs-Signature: sha256=&lt;hex&gt;</code> over the raw request body.</span>
+      <span style="font-size: 0.8rem; color: var(--text-muted);">With HMAC, Sooma sends <code>X-Calrs-Signature: sha256=&lt;hex&gt;</code> over the raw request body.</span>
     </div>
     <div class="form-group">
       <label>Shared secret <span class="hint">(leave empty to keep current{% if meeting_webhook_has_secret %} — currently set{% endif %})</span></label>
@@ -565,7 +565,7 @@ document.querySelectorAll('input[type="color"]').forEach(function(picker) {
     </div>
     <div class="form-group">
       <label>From name <span class="hint">(optional)</span></label>
-      <input type="text" name="from_name" value="{{ smtp_from_name }}" placeholder="calrs">
+      <input type="text" name="from_name" value="{{ smtp_from_name }}" placeholder="Sooma">
     </div>
     <button type="submit" class="slot-btn" style="cursor: pointer; font-weight: 600; color: var(--accent); border-color: var(--accent);">Save SMTP settings</button>
   </form>
