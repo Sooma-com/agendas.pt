@@ -445,7 +445,7 @@
        content. */
     body { padding: 1rem 0.75rem; background: transparent; display: block; min-height: 0; }
     .container { max-width: none; }
-    .logo, .powered, .theme-pill, #theme-toggle { display: none !important; }
+    .logo, .powered, .theme-toggle, #theme-toggle { display: none !important; }
     {% if embed_brand %}
     /* Apply the brand accent in both light and dark mode. The `html.dark`
        selector is needed to out-specify base.html's `html.dark` accent rule;
@@ -492,26 +492,11 @@
     {% block content %}{% endblock %}
     {% block footer %}<div class="powered"><span>Powered by <a href="https://agendas.pt" target="_blank" rel="noopener" style="color:inherit;">agendas.pt</a> <span style="display:inline-block;background:var(--accent);color:#fff;font-size:0.65rem;font-weight:700;padding:0.05rem 0.45rem;border-radius:999px;letter-spacing:0.04em;vertical-align:middle;text-transform:uppercase;">Beta</span> · <a href="https://sooma.com" target="_blank" rel="noopener" style="color:inherit;">Sooma Labs</a> · <a href="https://github.com/Sooma-com/agendas.pt" target="_blank" rel="noopener">Source</a></span></div>{% endblock %}
     {% block theme_toggle %}
-    <button id="theme-toggle" type="button" title="{{ t('base-theme-toggle') }}" aria-label="{{ t('base-theme-toggle') }}" class="theme-pill">
-      <span class="theme-pill-track">
-        <svg class="theme-pill-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
-        <svg class="theme-pill-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5h4"/><path d="M20 3v4"/><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg>
-        <span class="theme-pill-knob"></span>
-      </span>
-    </button>
-    <style>
-      .theme-pill { position: fixed; top: 0.75rem; right: 0.75rem; background: none; border: none; cursor: pointer; padding: 0; z-index: 10; }
-      .theme-pill-track { display: flex; align-items: center; justify-content: space-between; width: 52px; height: 28px; background: var(--border); border-radius: 999px; padding: 0 5px; position: relative; transition: background 0.3s ease; }
-      .theme-pill:hover .theme-pill-track { background: var(--text-muted); }
-      .theme-pill-sun, .theme-pill-moon { width: 14px; height: 14px; flex-shrink: 0; transition: opacity 0.3s ease; }
-      .theme-pill-sun { color: #f59e0b; }
-      .theme-pill-moon { color: #94a3b8; }
-      .theme-pill-knob { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; background: var(--surface, #fff); border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-      html.dark .theme-pill-knob { transform: translateX(24px); }
-      html.dark .theme-pill-track { background: #374151; }
-      html.dark .theme-pill:hover .theme-pill-track { background: #4b5563; }
-      html.dark .theme-pill-sun { opacity: 0.4; }
-      html:not(.dark) .theme-pill-moon { opacity: 0.4; }
+        <button id="theme-toggle" type="button" class="theme-toggle" aria-label="{{ t('base-theme-toggle') }}" title="{{ t('base-theme-toggle') }}"></button>
+        <style>
+      .theme-toggle { position: fixed; top: 0.75rem; right: 0.75rem; background: none; border: none; cursor: pointer; padding: 0.4rem; z-index: 10; color: var(--text-muted); line-height: 0; border-radius: 8px; transition: color 0.2s ease, background 0.2s ease; }
+      .theme-toggle:hover { color: var(--text); background: var(--surface-hover, rgba(127,127,127,0.12)); }
+      .theme-toggle svg { width: 20px; height: 20px; display: block; }
     </style>
     {% endblock %}
   </div>
@@ -551,43 +536,26 @@
 })();
 </script>
 <script>
-// Theme toggle (light / dark / system)
+// Theme toggle (system / light / dark) — single cycling icon
 (function() {
   var btn = document.getElementById('theme-toggle');
-  // In embed mode the parent controls the theme via ?theme=, so we must read
-  // that instead of localStorage — otherwise this script would clobber the
-  // dark/light class the early head script already set from the URL param.
   var embed = {{ embed | default(false) | tojson }};
   var embedTheme = {{ embed_theme | default("") | tojson }};
-  function getTheme() {
-    if (embed) return embedTheme || 'system';
-    return localStorage.getItem('calrs_theme') || 'system';
-  }
-  function followsSystem(t) { return t === 'system' || t === 'auto' || t === ''; }
-  function isDark() {
-    var t = getTheme();
-    return t === 'dark' || (followsSystem(t) && matchMedia('(prefers-color-scheme:dark)').matches);
-  }
-  function apply() {
-    if (isDark()) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }
-  // The toggle button is hidden in embed mode; only wire it when present and
-  // when the visitor (not the parent) owns the theme.
+  var ICON = { system: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2M14.837 16.385a6 6 0 1 1-7.223-7.222c.624-.147.97.66.715 1.248a4 4 0 0 0 5.26 5.259c.589-.255 1.396.09 1.248.715M16 12a4 4 0 0 0-4-4M19 5l-1.256 1.256M20 12h2"/></svg>', light: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>', dark: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5h4M20 3v4M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg>' };
+  var NEXT = { system: 'light', light: 'dark', dark: 'system' };
+  var NEXT_LABEL = { light: 'Switch to light mode', dark: 'Switch to dark mode', system: 'Switch to system preference' };
+  function getTheme() { if (embed) return embedTheme || 'system'; return localStorage.getItem('calrs_theme') || 'system'; }
+  function norm(t) { return (!t || t === 'auto' || t === '') ? 'system' : t; }
+  function followsSystem(t) { return norm(t) === 'system'; }
+  function isDark() { var t = getTheme(); return t === 'dark' || (followsSystem(t) && matchMedia('(prefers-color-scheme:dark)').matches); }
+  function apply() { document.documentElement.classList.toggle('dark', isDark()); }
+  function render() { if (!btn) return; var t = norm(getTheme()); btn.innerHTML = ICON[t]; var n = NEXT[t]; btn.setAttribute('aria-label', NEXT_LABEL[n]); btn.setAttribute('title', NEXT_LABEL[n]); }
   if (btn && !embed) {
-    btn.addEventListener('click', function() {
-      var next = isDark() ? 'light' : 'dark';
-      localStorage.setItem('calrs_theme', next);
-      apply();
-    });
+    btn.addEventListener('click', function() { var t = norm(getTheme()); localStorage.setItem('calrs_theme', NEXT[t]); apply(); render(); });
+    render();
   }
   apply();
-  matchMedia('(prefers-color-scheme:dark)').addEventListener('change', function() {
-    if (followsSystem(getTheme())) apply();
-  });
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change', function() { if (followsSystem(getTheme())) { apply(); render(); } });
 })();
 </script>
 <script>
