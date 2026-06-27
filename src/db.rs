@@ -855,7 +855,7 @@ mod tests {
             .fetch_one(&pool)
             .await
             .unwrap();
-        assert_eq!(count.0, 57, "All 57 migrations should be tracked");
+        assert_eq!(count.0, 58, "All 58 migrations should be tracked");
     }
 
     #[tokio::test]
@@ -869,7 +869,7 @@ mod tests {
             .fetch_one(&pool)
             .await
             .unwrap();
-        assert_eq!(count.0, 57, "Still 57 migrations after second run");
+        assert_eq!(count.0, 58, "Still 58 migrations after second run");
     }
 
     #[tokio::test]

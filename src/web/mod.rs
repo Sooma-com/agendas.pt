@@ -5097,13 +5097,12 @@ async fn edit_event_type_form(
         })
         .collect();
 
-    let follow_default: i64 = sqlx::query_scalar(
-        "SELECT follow_default_availability FROM event_types WHERE id = ?",
-    )
-    .bind(&et_id)
-    .fetch_one(&state.pool)
-    .await
-    .unwrap_or(0);
+    let follow_default: i64 =
+        sqlx::query_scalar("SELECT follow_default_availability FROM event_types WHERE id = ?")
+            .bind(&et_id)
+            .fetch_one(&state.pool)
+            .await
+            .unwrap_or(0);
 
     Html(
         tmpl.render(context! {
@@ -11641,13 +11640,12 @@ enum BusySource {
 /// default schedule when `follow_default_availability` is set, otherwise the
 /// event type's own per-event rules.
 async fn effective_avail_rules(pool: &SqlitePool, et_id: &str) -> Vec<(i32, String, String)> {
-    let follow: i64 = sqlx::query_scalar(
-        "SELECT follow_default_availability FROM event_types WHERE id = ?",
-    )
-    .bind(et_id)
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0);
+    let follow: i64 =
+        sqlx::query_scalar("SELECT follow_default_availability FROM event_types WHERE id = ?")
+            .bind(et_id)
+            .fetch_one(pool)
+            .await
+            .unwrap_or(0);
     if follow != 0 {
         let owner: Option<String> = sqlx::query_scalar(
             "SELECT a.user_id FROM event_types e JOIN accounts a ON a.id = e.account_id WHERE e.id = ?",
@@ -15465,25 +15463,46 @@ fn favicon_response(bytes: &'static [u8], content_type: &str) -> axum::response:
         .into_response()
 }
 async fn favicon_ico() -> impl IntoResponse {
-    favicon_response(include_bytes!("../../assets/favicon/favicon.ico"), "image/x-icon")
+    favicon_response(
+        include_bytes!("../../assets/favicon/favicon.ico"),
+        "image/x-icon",
+    )
 }
 async fn favicon_16() -> impl IntoResponse {
-    favicon_response(include_bytes!("../../assets/favicon/favicon-16x16.png"), "image/png")
+    favicon_response(
+        include_bytes!("../../assets/favicon/favicon-16x16.png"),
+        "image/png",
+    )
 }
 async fn favicon_32() -> impl IntoResponse {
-    favicon_response(include_bytes!("../../assets/favicon/favicon-32x32.png"), "image/png")
+    favicon_response(
+        include_bytes!("../../assets/favicon/favicon-32x32.png"),
+        "image/png",
+    )
 }
 async fn favicon_apple() -> impl IntoResponse {
-    favicon_response(include_bytes!("../../assets/favicon/apple-touch-icon.png"), "image/png")
+    favicon_response(
+        include_bytes!("../../assets/favicon/apple-touch-icon.png"),
+        "image/png",
+    )
 }
 async fn favicon_android_192() -> impl IntoResponse {
-    favicon_response(include_bytes!("../../assets/favicon/android-chrome-192x192.png"), "image/png")
+    favicon_response(
+        include_bytes!("../../assets/favicon/android-chrome-192x192.png"),
+        "image/png",
+    )
 }
 async fn favicon_android_512() -> impl IntoResponse {
-    favicon_response(include_bytes!("../../assets/favicon/android-chrome-512x512.png"), "image/png")
+    favicon_response(
+        include_bytes!("../../assets/favicon/android-chrome-512x512.png"),
+        "image/png",
+    )
 }
 async fn favicon_manifest() -> impl IntoResponse {
-    favicon_response(include_bytes!("../../assets/favicon/site.webmanifest"), "application/manifest+json")
+    favicon_response(
+        include_bytes!("../../assets/favicon/site.webmanifest"),
+        "application/manifest+json",
+    )
 }
 
 /// Serves the embed runtime that consumers paste into their own sites. It's
