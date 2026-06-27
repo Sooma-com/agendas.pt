@@ -62,48 +62,36 @@
     <div class="i18n-head">
       <label for="title">Title</label>
       <div class="i18n-tabs" data-i18n-tabs>
-        <button type="button" data-i18n-tab="pt" class="active">PT</button>
-        <button type="button" data-i18n-tab="en">EN</button>
+        {% for l in form_languages %}<button type="button" data-i18n-tab="{{ l.code }}" {% if l.is_default %}class="active"{% endif %}>{{ l.code | upper }}</button>{% endfor %}
       </div>
     </div>
-    <div data-i18n-pane="pt">
-      <input type="text" id="title" name="title" required value="{{ form_title }}" placeholder="Conversa inicial">
+    {% for l in form_languages %}
+    <div data-i18n-pane="{{ l.code }}" {% if not l.is_default %}hidden{% endif %}>
+      <input type="text" {% if l.is_default %}id="title" name="title" required{% else %}name="title_{{ l.code }}"{% endif %} value="{{ form_titles[l.code] }}" placeholder="{% if l.is_default %}30min intro call{% else %}Title in {{ l.label }}{% endif %}">
     </div>
-    <div data-i18n-pane="en" hidden>
-      <input type="text" id="title_en" name="title_en" value="{{ form_title_en }}" placeholder="Intro call">
-    </div>
-    <span class="hint" style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">EN is shown to visitors whose browser isn't Portuguese. Leave it blank to reuse the Portuguese title.</span>
+    {% endfor %}
+    <span class="hint" style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">Other languages are shown to visitors whose browser matches; leave blank to reuse the default language.</span>
   </div>
 
   <div class="form-group i18n-field">
     <label for="description">Description <span class="hint">(optional)</span></label>
-    <div data-i18n-pane="pt">
+    {% for l in form_languages %}
+    {% set tid = "description" if l.is_default else "description_" ~ l.code %}
+    <div data-i18n-pane="{{ l.code }}" {% if not l.is_default %}hidden{% endif %}>
       <div style="border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;">
-        <div class="md-toolbar" data-target="description" style="display: flex; gap: 0.25rem; padding: 0.375rem 0.5rem; background: var(--surface-hover); border-bottom: 1px solid var(--border);">
+        <div class="md-toolbar" data-target="{{ tid }}" style="display: flex; gap: 0.25rem; padding: 0.375rem 0.5rem; background: var(--surface-hover); border-bottom: 1px solid var(--border);">
           <button type="button" data-action="bold" title="Bold" style="padding: 0.25rem 0.5rem; background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; font-weight: 700; font-size: 0.85rem; color: var(--text); font-family: inherit; line-height: 1;">B</button>
           <button type="button" data-action="italic" title="Italic" style="padding: 0.25rem 0.5rem; background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; font-style: italic; font-size: 0.85rem; color: var(--text); font-family: inherit; line-height: 1;">I</button>
           <button type="button" data-action="link" title="Insert link" style="padding: 0.25rem 0.5rem; background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; font-size: 0.85rem; color: var(--text); font-family: inherit; line-height: 1;">&#128279;</button>
           <div style="flex: 1;"></div>
           <button type="button" class="md-preview-toggle" title="Toggle preview" style="padding: 0.25rem 0.5rem; background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; font-size: 0.75rem; color: var(--text-muted); font-family: inherit; line-height: 1;">Preview</button>
         </div>
-        <textarea id="description" name="description" placeholder="Conversa rápida para perceber as suas necessidades." style="border: none; border-radius: 0; width: 100%; resize: vertical; padding: 0.5rem 0.75rem; font-family: inherit; font-size: 0.9rem; background: var(--surface); color: var(--text); box-sizing: border-box;">{{ form_description }}</textarea>
-        <div id="description-preview" style="display: none; padding: 0.5rem 0.75rem; min-height: 4rem; font-size: 0.9rem; color: var(--text); background: var(--surface);"></div>
+        <textarea {% if l.is_default %}id="description" name="description"{% else %}id="{{ tid }}" name="description_{{ l.code }}"{% endif %} placeholder="Shown on the booking page" style="border: none; border-radius: 0; width: 100%; resize: vertical; padding: 0.5rem 0.75rem; font-family: inherit; font-size: 0.9rem; background: var(--surface); color: var(--text); box-sizing: border-box;">{{ form_descriptions[l.code] }}</textarea>
+        <div id="{{ tid }}-preview" style="display: none; padding: 0.5rem 0.75rem; min-height: 4rem; font-size: 0.9rem; color: var(--text); background: var(--surface);"></div>
       </div>
     </div>
-    <div data-i18n-pane="en" hidden>
-      <div style="border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;">
-        <div class="md-toolbar" data-target="description_en" style="display: flex; gap: 0.25rem; padding: 0.375rem 0.5rem; background: var(--surface-hover); border-bottom: 1px solid var(--border);">
-          <button type="button" data-action="bold" title="Bold" style="padding: 0.25rem 0.5rem; background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; font-weight: 700; font-size: 0.85rem; color: var(--text); font-family: inherit; line-height: 1;">B</button>
-          <button type="button" data-action="italic" title="Italic" style="padding: 0.25rem 0.5rem; background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; font-style: italic; font-size: 0.85rem; color: var(--text); font-family: inherit; line-height: 1;">I</button>
-          <button type="button" data-action="link" title="Insert link" style="padding: 0.25rem 0.5rem; background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; font-size: 0.85rem; color: var(--text); font-family: inherit; line-height: 1;">&#128279;</button>
-          <div style="flex: 1;"></div>
-          <button type="button" class="md-preview-toggle" title="Toggle preview" style="padding: 0.25rem 0.5rem; background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; font-size: 0.75rem; color: var(--text-muted); font-family: inherit; line-height: 1;">Preview</button>
-        </div>
-        <textarea id="description_en" name="description_en" placeholder="A quick call to understand your needs." style="border: none; border-radius: 0; width: 100%; resize: vertical; padding: 0.5rem 0.75rem; font-family: inherit; font-size: 0.9rem; background: var(--surface); color: var(--text); box-sizing: border-box;">{{ form_description_en }}</textarea>
-        <div id="description_en-preview" style="display: none; padding: 0.5rem 0.75rem; min-height: 4rem; font-size: 0.9rem; color: var(--text); background: var(--surface);"></div>
-      </div>
-    </div>
-    <span class="hint" style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">Shown on the booking page. Supports **bold**, *italic*, and [links](url). EN is shown to non-Portuguese visitors; leave it blank to reuse the Portuguese text.</span>
+    {% endfor %}
+    <span class="hint" style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">Shown on the booking page. Supports **bold**, *italic*, and [links](url). Other languages fall back to the default when blank.</span>
   </div>
 
   <div class="form-group">

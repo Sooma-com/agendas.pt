@@ -32,6 +32,7 @@ pub struct User {
     pub avatar_path: Option<String>,
     pub allow_dynamic_group: bool,
     pub language: Option<String>,
+    pub active_languages: Option<String>,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]

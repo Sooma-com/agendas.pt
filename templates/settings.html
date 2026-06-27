@@ -119,6 +119,29 @@
     </div>
 
     <div class="form-group" style="margin-top: 1rem;">
+      <label for="default_language">Default content language</label>
+      <select id="default_language" name="default_language" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 0.9rem;">
+        {% for l in language_options %}
+          <option value="{{ l.code }}" {% if l.is_default %}selected{% endif %}>{{ l.label }}</option>
+        {% endfor %}
+      </select>
+      <span class="hint" style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">The language your event titles and descriptions are written in by default. Visitors see this when their own language isn't offered.</span>
+    </div>
+
+    <div class="form-group" style="margin-top: 1rem;">
+      <label>Additional languages</label>
+      <span class="hint" style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">Tick the languages you want to offer translated titles and descriptions in. The default language is always on.</span>
+      <div id="active-languages" style="display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.6rem;">
+        {% for l in language_options %}
+        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+          <input type="checkbox" name="active_lang_{{ l.code }}" value="on" data-lang="{{ l.code }}" {% if l.is_active %}checked{% endif %} {% if l.is_default %}disabled{% endif %} style="width: auto;">
+          {{ l.label }}{% if l.is_default %} <span class="hint" style="color: var(--text-muted);">(default)</span>{% endif %}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top: 1rem;">
       <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
         <input type="checkbox" name="allow_dynamic_group" {% if allow_dynamic_group %}checked{% endif %} style="width: auto;">
         Allow others to include me in dynamic group links
@@ -338,5 +361,25 @@ if (window.location.hash === '#availability') {
   var el = document.getElementById('availability');
   if (el) setTimeout(function() { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
 }
+
+// Keep the additional-languages list in sync with the default-language select:
+// the chosen default is always active (checked + locked).
+(function () {
+  var sel = document.getElementById('default_language');
+  var box = document.getElementById('active-languages');
+  if (!sel || !box) return;
+  function sync() {
+    box.querySelectorAll('input[type="checkbox"][data-lang]').forEach(function (cb) {
+      if (cb.getAttribute('data-lang') === sel.value) {
+        cb.checked = true;
+        cb.disabled = true;
+      } else {
+        cb.disabled = false;
+      }
+    });
+  }
+  sel.addEventListener('change', sync);
+  sync();
+})();
 </script>
 {% endblock %}

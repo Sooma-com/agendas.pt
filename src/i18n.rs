@@ -140,6 +140,18 @@ fn lang_cookie(headers: &HeaderMap) -> Option<&'static str> {
     None
 }
 
+/// Whether a code is one of the bundled locales.
+pub fn is_supported(code: &str) -> bool {
+    SUPPORTED_LANGS.iter().any(|(c, _, _)| *c == code)
+}
+
+/// All supported languages with their native display labels, in display order.
+pub fn supported_with_labels() -> impl Iterator<Item = (&'static str, &'static str)> {
+    SUPPORTED_LANGS
+        .iter()
+        .map(|(code, label, _)| (*code, *label))
+}
+
 fn weekday_key(d: Weekday) -> &'static str {
     match d {
         Weekday::Mon => "common-weekday-long-mon",

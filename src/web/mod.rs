@@ -2754,6 +2754,16 @@ struct SettingsForm {
     booking_email: Option<String>,
     timezone: Option<String>,
     allow_dynamic_group: Option<String>,
+    // Default content language for new event types.
+    default_language: Option<String>,
+    // Active-language checkboxes ("on" or absent). The default language is
+    // always active regardless of these.
+    active_lang_en: Option<String>,
+    active_lang_pt: Option<String>,
+    active_lang_es: Option<String>,
+    active_lang_fr: Option<String>,
+    active_lang_de: Option<String>,
+    active_lang_it: Option<String>,
     #[serde(default)]
     avail_schedule: String,
 }
@@ -3012,6 +3022,33 @@ fn settings_render(
             context! { value => iana, label => label }
         })
         .collect();
+
+    // Default content language (the base each event type is authored in) and
+    // the additionally-active languages the user offers translations for.
+    let default_lang = user
+        .language
+        .as_deref()
+        .filter(|s| crate::i18n::is_supported(s))
+        .unwrap_or("pt");
+    let active_set: std::collections::HashSet<String> = user
+        .active_languages
+        .as_deref()
+        .unwrap_or("")
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    let language_options: Vec<minijinja::Value> = crate::i18n::supported_with_labels()
+        .map(|(code, label)| {
+            context! {
+                code => code,
+                label => label,
+                is_default => code == default_lang,
+                is_active => code == default_lang || active_set.contains(code),
+            }
+        })
+        .collect();
+
     Html(
         tmpl.render(context! {
             sidebar => sidebar,
@@ -3022,6 +3059,8 @@ fn settings_render(
             form_booking_email => user.booking_email.as_deref().unwrap_or(""),
             form_timezone => user.timezone,
             tz_options => tz_options,
+            language_options => language_options,
+            form_default_language => default_lang,
             user_email => user.email,
             user_id => user.id,
             has_avatar => user.avatar_path.is_some(),
@@ -3176,8 +3215,32 @@ async fn settings_save(
 
     let allow_dynamic_group = form.allow_dynamic_group.as_deref() == Some("on");
 
+    // Default content language + the set of additionally-active languages.
+    let default_language = form
+        .default_language
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| crate::i18n::is_supported(s))
+        .unwrap_or("pt")
+        .to_string();
+    let active_flags = [
+        ("en", form.active_lang_en.as_deref() == Some("on")),
+        ("pt", form.active_lang_pt.as_deref() == Some("on")),
+        ("es", form.active_lang_es.as_deref() == Some("on")),
+        ("fr", form.active_lang_fr.as_deref() == Some("on")),
+        ("de", form.active_lang_de.as_deref() == Some("on")),
+        ("it", form.active_lang_it.as_deref() == Some("on")),
+    ];
+    // The default language is always active; store the rest as a comma list.
+    let active_languages = active_flags
+        .iter()
+        .filter(|(code, on)| *on || *code == default_language)
+        .map(|(code, _)| *code)
+        .collect::<Vec<_>>()
+        .join(",");
+
     let result = sqlx::query(
-        "UPDATE users SET name = ?, title = ?, bio = ?, booking_email = ?, timezone = ?, allow_dynamic_group = ?, updated_at = datetime('now') WHERE id = ?",
+        "UPDATE users SET name = ?, title = ?, bio = ?, booking_email = ?, timezone = ?, allow_dynamic_group = ?, language = ?, active_languages = ?, updated_at = datetime('now') WHERE id = ?",
     )
     .bind(&name)
     .bind(&title)
@@ -3185,6 +3248,8 @@ async fn settings_save(
     .bind(&booking_email)
     .bind(&timezone)
     .bind(allow_dynamic_group)
+    .bind(&default_language)
+    .bind(&active_languages)
     .bind(&user.id)
     .execute(&state.pool)
     .await;
@@ -4322,13 +4387,24 @@ async fn confirm_booking(
 #[derive(Deserialize)]
 struct EventTypeForm {
     _csrf: Option<String>,
+    // `title`/`description` carry the content in the event's default language
+    // (stored in the base columns). The per-language fields below carry the
+    // other active languages and are stored in event_type_translations.
     title: String,
     slug: String,
     description: Option<String>,
-    // English variants of title/description. Visitor booking pages render these
-    // for non-Portuguese guests (falling back to the base fields when blank).
     title_en: Option<String>,
     description_en: Option<String>,
+    title_pt: Option<String>,
+    description_pt: Option<String>,
+    title_es: Option<String>,
+    description_es: Option<String>,
+    title_fr: Option<String>,
+    description_fr: Option<String>,
+    title_de: Option<String>,
+    description_de: Option<String>,
+    title_it: Option<String>,
+    description_it: Option<String>,
     #[serde(default)]
     duration_min: String,
     #[serde(default)]
@@ -4479,6 +4555,12 @@ async fn new_event_type_form(
         Err(e) => return internal_error_html("template render", &e),
     };
 
+    let (default_lang, active_langs) = user_content_langs(user);
+    let (form_languages, form_titles, form_descriptions) = lang_form_context(
+        &default_lang,
+        &active_langs,
+        &std::collections::HashMap::new(),
+    );
     let (impersonating, impersonating_name, _) = impersonation_ctx(&auth_user);
     Html(
         tmpl.render(context! {
@@ -4486,6 +4568,9 @@ async fn new_event_type_form(
             impersonating => impersonating,
             impersonating_name => impersonating_name,
             editing => false,
+            form_languages => form_languages,
+            form_titles => form_titles,
+            form_descriptions => form_descriptions,
             preset => preset,
             teams => groups_ctx,
             calendars => calendars_ctx,
@@ -4523,6 +4608,140 @@ async fn new_event_type_form(
         })
         .unwrap_or_else(|e| internal_error_body("template render", &e)),
     )
+}
+
+/// The content languages calrs ships, in display order.
+const CONTENT_LANGS: [&str; 6] = ["en", "pt", "es", "fr", "de", "it"];
+
+/// A user's default content language plus the ordered set of active languages
+/// (always including the default).
+fn user_content_langs(user: &crate::models::User) -> (String, Vec<String>) {
+    let default = user
+        .language
+        .as_deref()
+        .filter(|s| crate::i18n::is_supported(s))
+        .unwrap_or("pt")
+        .to_string();
+    let set: std::collections::HashSet<String> = user
+        .active_languages
+        .as_deref()
+        .unwrap_or("")
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    let active: Vec<String> = CONTENT_LANGS
+        .iter()
+        .filter(|c| **c == default || set.contains(**c))
+        .map(|c| c.to_string())
+        .collect();
+    (default, active)
+}
+
+fn form_title_for<'a>(form: &'a EventTypeForm, lang: &str) -> Option<&'a str> {
+    let v = match lang {
+        "en" => form.title_en.as_deref(),
+        "pt" => form.title_pt.as_deref(),
+        "es" => form.title_es.as_deref(),
+        "fr" => form.title_fr.as_deref(),
+        "de" => form.title_de.as_deref(),
+        "it" => form.title_it.as_deref(),
+        _ => None,
+    };
+    v.map(str::trim).filter(|s| !s.is_empty())
+}
+
+fn form_desc_for<'a>(form: &'a EventTypeForm, lang: &str) -> Option<&'a str> {
+    let v = match lang {
+        "en" => form.description_en.as_deref(),
+        "pt" => form.description_pt.as_deref(),
+        "es" => form.description_es.as_deref(),
+        "fr" => form.description_fr.as_deref(),
+        "de" => form.description_de.as_deref(),
+        "it" => form.description_it.as_deref(),
+        _ => None,
+    };
+    v.map(str::trim).filter(|s| !s.is_empty())
+}
+
+/// Upsert the per-language translation rows for an event type. The default
+/// language lives in the base columns; every other active language is written
+/// here, and languages that are inactive (or blank) are removed.
+async fn save_event_type_translations(
+    pool: &SqlitePool,
+    et_id: &str,
+    default_lang: &str,
+    active_langs: &[String],
+    form: &EventTypeForm,
+) {
+    for lang in CONTENT_LANGS {
+        if lang == default_lang {
+            continue;
+        }
+        let keep = active_langs.iter().any(|l| l == lang);
+        let title = if keep {
+            form_title_for(form, lang)
+        } else {
+            None
+        };
+        let desc = if keep {
+            form_desc_for(form, lang)
+        } else {
+            None
+        };
+        if title.is_some() || desc.is_some() {
+            let _ = sqlx::query(
+                "INSERT INTO event_type_translations (event_type_id, lang, title, description)
+                 VALUES (?, ?, ?, ?)
+                 ON CONFLICT(event_type_id, lang) DO UPDATE SET title = excluded.title, description = excluded.description",
+            )
+            .bind(et_id)
+            .bind(lang)
+            .bind(title)
+            .bind(desc)
+            .execute(pool)
+            .await;
+        } else {
+            let _ = sqlx::query(
+                "DELETE FROM event_type_translations WHERE event_type_id = ? AND lang = ?",
+            )
+            .bind(et_id)
+            .bind(lang)
+            .execute(pool)
+            .await;
+        }
+    }
+}
+
+/// Build the per-language form context (tab list + title/description maps) for
+/// the event-type form. `show_langs` is ordered (default first). `content` maps
+/// a lang code to its (title, description); missing entries render empty.
+fn lang_form_context(
+    default_lang: &str,
+    show_langs: &[String],
+    content: &std::collections::HashMap<String, (String, String)>,
+) -> (
+    Vec<minijinja::Value>,
+    std::collections::HashMap<String, String>,
+    std::collections::HashMap<String, String>,
+) {
+    let labels: std::collections::HashMap<&str, &str> =
+        crate::i18n::supported_with_labels().collect();
+    let mut form_languages = Vec::new();
+    let mut titles = std::collections::HashMap::new();
+    let mut descs = std::collections::HashMap::new();
+    for code in show_langs {
+        let label = labels.get(code.as_str()).copied().unwrap_or(code.as_str());
+        form_languages.push(context! {
+            code => code,
+            label => label,
+            is_default => code == default_lang,
+        });
+        let (t, d) = content.get(code).cloned().unwrap_or_default();
+        titles.insert(code.clone(), t);
+        descs.insert(code.clone(), d);
+    }
+    (form_languages, titles, descs)
 }
 
 async fn create_event_type(
@@ -4686,22 +4905,17 @@ async fn create_event_type(
         .filter(|s| !s.is_empty())
         .map(str::to_string);
 
+    let (default_lang, active_langs) = user_content_langs(user);
     let _ = sqlx::query(
-        "INSERT INTO event_types (id, account_id, slug, title, description, title_en, description_en, duration_min, slot_interval_min, buffer_before, buffer_after, min_notice_min, requires_confirmation, location_type, location_value, team_id, created_by_user_id, reminder_minutes, visibility, max_additional_guests, default_calendar_view, first_slot_only, timezone, cancel_notice_min, reschedule_notice_min, meeting_pattern_override, follow_default_availability)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO event_types (id, account_id, slug, title, description, default_lang, duration_min, slot_interval_min, buffer_before, buffer_after, min_notice_min, requires_confirmation, location_type, location_value, team_id, created_by_user_id, reminder_minutes, visibility, max_additional_guests, default_calendar_view, first_slot_only, timezone, cancel_notice_min, reschedule_notice_min, meeting_pattern_override, follow_default_availability)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&et_id)
     .bind(&account_id)
     .bind(&slug)
     .bind(form.title.trim())
     .bind(form.description.as_deref().filter(|s| !s.trim().is_empty()))
-    .bind(form.title_en.as_deref().map(str::trim).filter(|s| !s.is_empty()))
-    .bind(
-        form.description_en
-            .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty()),
-    )
+    .bind(&default_lang)
     .bind(parse_int_field(&form.duration_min, 30))
     .bind(parse_optional_positive_int(&form.slot_interval_min))
     .bind(parse_int_field(&form.buffer_before, 0))
@@ -4724,6 +4938,8 @@ async fn create_event_type(
     .bind(follow_default as i32)
     .execute(&state.pool)
     .await;
+
+    save_event_type_translations(&state.pool, &et_id, &default_lang, &active_langs, &form).await;
 
     tracing::info!(slug = %slug, user = %auth_user.user.email, "event type created");
 
@@ -5099,19 +5315,51 @@ async fn edit_event_type_form(
             .await
             .unwrap_or(0);
 
-    let (et_title_en, et_desc_en): (Option<String>, Option<String>) =
-        sqlx::query_as("SELECT title_en, description_en FROM event_types WHERE id = ?")
+    let et_default_lang: String =
+        sqlx::query_scalar("SELECT COALESCE(default_lang, 'pt') FROM event_types WHERE id = ?")
             .bind(&et_id)
             .fetch_one(&state.pool)
             .await
-            .unwrap_or((None, None));
+            .unwrap_or_else(|_| "pt".to_string());
+    let translation_rows: Vec<(String, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT lang, title, description FROM event_type_translations WHERE event_type_id = ?",
+    )
+    .bind(&et_id)
+    .fetch_all(&state.pool)
+    .await
+    .unwrap_or_default();
+    let mut lang_content: std::collections::HashMap<String, (String, String)> =
+        std::collections::HashMap::new();
+    lang_content.insert(
+        et_default_lang.clone(),
+        (et_title.clone(), et_desc.clone().unwrap_or_default()),
+    );
+    for (lang, t, d) in &translation_rows {
+        lang_content.insert(
+            lang.clone(),
+            (t.clone().unwrap_or_default(), d.clone().unwrap_or_default()),
+        );
+    }
+    let (_d2, user_active) = user_content_langs(&auth_user.user);
+    let mut show_langs: Vec<String> = vec![et_default_lang.clone()];
+    for code in CONTENT_LANGS {
+        if code == et_default_lang {
+            continue;
+        }
+        if user_active.iter().any(|l| l == code) || lang_content.contains_key(code) {
+            show_langs.push(code.to_string());
+        }
+    }
+    let (form_languages, form_titles, form_descriptions) =
+        lang_form_context(&et_default_lang, &show_langs, &lang_content);
 
     Html(
         tmpl.render(context! {
             editing => true,
             form_follow_default_availability => follow_default != 0,
-            form_title_en => et_title_en.unwrap_or_default(),
-            form_description_en => et_desc_en.unwrap_or_default(),
+            form_languages => form_languages,
+            form_titles => form_titles,
+            form_descriptions => form_descriptions,
             original_slug => et_slug,
             calendars => calendars_ctx,
             selected_calendar_ids => selected_calendar_ids,
@@ -5270,18 +5518,11 @@ async fn update_event_type(
         .map(str::to_string);
 
     let _ = sqlx::query(
-        "UPDATE event_types SET slug = ?, title = ?, description = ?, title_en = ?, description_en = ?, duration_min = ?, slot_interval_min = ?, buffer_before = ?, buffer_after = ?, min_notice_min = ?, requires_confirmation = ?, location_type = ?, location_value = ?, reminder_minutes = ?, visibility = ?, max_additional_guests = ?, scheduling_mode = ?, default_calendar_view = ?, first_slot_only = ?, timezone = ?, cancel_notice_min = ?, reschedule_notice_min = ?, meeting_pattern_override = ? WHERE id = ?",
+        "UPDATE event_types SET slug = ?, title = ?, description = ?, duration_min = ?, slot_interval_min = ?, buffer_before = ?, buffer_after = ?, min_notice_min = ?, requires_confirmation = ?, location_type = ?, location_value = ?, reminder_minutes = ?, visibility = ?, max_additional_guests = ?, scheduling_mode = ?, default_calendar_view = ?, first_slot_only = ?, timezone = ?, cancel_notice_min = ?, reschedule_notice_min = ?, meeting_pattern_override = ? WHERE id = ?",
     )
     .bind(&new_slug)
     .bind(form.title.trim())
     .bind(form.description.as_deref().filter(|s| !s.trim().is_empty()))
-    .bind(form.title_en.as_deref().map(str::trim).filter(|s| !s.is_empty()))
-    .bind(
-        form.description_en
-            .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty()),
-    )
     .bind(parse_int_field(&form.duration_min, 30))
     .bind(parse_optional_positive_int(&form.slot_interval_min))
     .bind(parse_int_field(&form.buffer_before, 0))
@@ -5303,6 +5544,17 @@ async fn update_event_type(
     .bind(&et_id)
     .execute(&state.pool)
     .await;
+
+    // Persist per-language translations (base columns hold the event's default
+    // language; other active languages go to event_type_translations).
+    let et_default_lang: String =
+        sqlx::query_scalar("SELECT COALESCE(default_lang, 'pt') FROM event_types WHERE id = ?")
+            .bind(&et_id)
+            .fetch_one(&state.pool)
+            .await
+            .unwrap_or_else(|_| "pt".to_string());
+    let (_d, active_langs) = user_content_langs(&auth_user.user);
+    save_event_type_translations(&state.pool, &et_id, &et_default_lang, &active_langs, &form).await;
 
     // Persist whether this event type follows the user's default schedule.
     let follow_default = form.follow_default_availability.as_deref() == Some("on");
@@ -6683,6 +6935,31 @@ fn render_event_type_form_error(
         Err(e) => return internal_error_html("template render", &e),
     };
 
+    let (default_lang, active_langs) = user_content_langs(&auth_user.user);
+    let mut lang_content: std::collections::HashMap<String, (String, String)> =
+        std::collections::HashMap::new();
+    lang_content.insert(
+        default_lang.clone(),
+        (
+            form.title.clone(),
+            form.description.clone().unwrap_or_default(),
+        ),
+    );
+    for code in &active_langs {
+        if *code == default_lang {
+            continue;
+        }
+        lang_content.insert(
+            code.clone(),
+            (
+                form_title_for(form, code).unwrap_or("").to_string(),
+                form_desc_for(form, code).unwrap_or("").to_string(),
+            ),
+        );
+    }
+    let (form_languages, form_titles, form_descriptions) =
+        lang_form_context(&default_lang, &active_langs, &lang_content);
+
     let (impersonating, impersonating_name, _) = impersonation_ctx(auth_user);
     Html(
         tmpl.render(context! {
@@ -6690,8 +6967,9 @@ fn render_event_type_form_error(
             form_title => form.title.as_str(),
             form_slug => form.slug.as_str(),
             form_description => form.description.as_deref().unwrap_or(""),
-            form_title_en => form.title_en.as_deref().unwrap_or(""),
-            form_description_en => form.description_en.as_deref().unwrap_or(""),
+            form_languages => form_languages,
+            form_titles => form_titles,
+            form_descriptions => form_descriptions,
             form_duration => parse_int_field(&form.duration_min, 30),
             form_slot_interval => parse_optional_positive_int(&form.slot_interval_min).unwrap_or(0),
             form_buffer_before => parse_int_field(&form.buffer_before, 0),
@@ -7670,11 +7948,20 @@ async fn new_group_event_type_form(
         Err(e) => return internal_error_html("template render", &e),
     };
 
+    let (default_lang, active_langs) = user_content_langs(&auth_user.user);
+    let (form_languages, form_titles, form_descriptions) = lang_form_context(
+        &default_lang,
+        &active_langs,
+        &std::collections::HashMap::new(),
+    );
     let (impersonating, impersonating_name, _) = impersonation_ctx(&auth_user);
     Html(
         tmpl.render(context! {
             editing => false,
             is_group => true,
+            form_languages => form_languages,
+            form_titles => form_titles,
+            form_descriptions => form_descriptions,
             teams => groups_ctx,
             form_team_id => groups.first().map(|(id, _)| id.as_str()).unwrap_or(""),
             form_title => "",
@@ -7825,22 +8112,17 @@ async fn create_group_event_type(
         .filter(|s| !s.is_empty())
         .map(str::to_string);
 
+    let (default_lang, active_langs) = user_content_langs(user);
     let _ = sqlx::query(
-        "INSERT INTO event_types (id, account_id, slug, title, description, title_en, description_en, duration_min, slot_interval_min, buffer_before, buffer_after, min_notice_min, requires_confirmation, location_type, location_value, team_id, created_by_user_id, default_calendar_view, first_slot_only, timezone, cancel_notice_min, reschedule_notice_min, meeting_pattern_override)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO event_types (id, account_id, slug, title, description, default_lang, duration_min, slot_interval_min, buffer_before, buffer_after, min_notice_min, requires_confirmation, location_type, location_value, team_id, created_by_user_id, default_calendar_view, first_slot_only, timezone, cancel_notice_min, reschedule_notice_min, meeting_pattern_override)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&et_id)
     .bind(&account_id)
     .bind(&slug)
     .bind(form.title.trim())
     .bind(form.description.as_deref().filter(|s| !s.trim().is_empty()))
-    .bind(form.title_en.as_deref().map(str::trim).filter(|s| !s.is_empty()))
-    .bind(
-        form.description_en
-            .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty()),
-    )
+    .bind(&default_lang)
     .bind(parse_int_field(&form.duration_min, 30))
     .bind(parse_optional_positive_int(&form.slot_interval_min))
     .bind(parse_int_field(&form.buffer_before, 0))
@@ -7859,6 +8141,8 @@ async fn create_group_event_type(
     .bind(&meeting_pattern_override)
     .execute(&state.pool)
     .await;
+
+    save_event_type_translations(&state.pool, &et_id, &default_lang, &active_langs, &form).await;
 
     // Create availability rules. Pass the creating user's profile-default
     // schedule as a fallback so an empty submission falls back to it instead
@@ -8191,12 +8475,43 @@ async fn edit_group_event_type_form(
         Err(e) => return internal_error_html("template render", &e),
     };
 
-    let (et_title_en, et_desc_en): (Option<String>, Option<String>) =
-        sqlx::query_as("SELECT title_en, description_en FROM event_types WHERE id = ?")
+    let et_default_lang: String =
+        sqlx::query_scalar("SELECT COALESCE(default_lang, 'pt') FROM event_types WHERE id = ?")
             .bind(&et_id)
             .fetch_one(&state.pool)
             .await
-            .unwrap_or((None, None));
+            .unwrap_or_else(|_| "pt".to_string());
+    let translation_rows: Vec<(String, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT lang, title, description FROM event_type_translations WHERE event_type_id = ?",
+    )
+    .bind(&et_id)
+    .fetch_all(&state.pool)
+    .await
+    .unwrap_or_default();
+    let mut lang_content: std::collections::HashMap<String, (String, String)> =
+        std::collections::HashMap::new();
+    lang_content.insert(
+        et_default_lang.clone(),
+        (et_title.clone(), et_desc.clone().unwrap_or_default()),
+    );
+    for (lang, t, d) in &translation_rows {
+        lang_content.insert(
+            lang.clone(),
+            (t.clone().unwrap_or_default(), d.clone().unwrap_or_default()),
+        );
+    }
+    let (_d2, user_active) = user_content_langs(&auth_user.user);
+    let mut show_langs: Vec<String> = vec![et_default_lang.clone()];
+    for code in CONTENT_LANGS {
+        if code == et_default_lang {
+            continue;
+        }
+        if user_active.iter().any(|l| l == code) || lang_content.contains_key(code) {
+            show_langs.push(code.to_string());
+        }
+    }
+    let (form_languages, form_titles, form_descriptions) =
+        lang_form_context(&et_default_lang, &show_langs, &lang_content);
 
     let (impersonating, impersonating_name, _) = impersonation_ctx(&auth_user);
     Html(
@@ -8205,11 +8520,10 @@ async fn edit_group_event_type_form(
             is_group => true,
             form_team_id => team_id,
             original_slug => et_slug,
-            form_title => et_title,
             form_slug => et_slug,
-            form_description => et_desc.unwrap_or_default(),
-            form_title_en => et_title_en.unwrap_or_default(),
-            form_description_en => et_desc_en.unwrap_or_default(),
+            form_languages => form_languages,
+            form_titles => form_titles,
+            form_descriptions => form_descriptions,
             form_duration => duration,
             form_slot_interval => slot_interval.unwrap_or(0),
             form_buffer_before => buf_before,
@@ -8374,18 +8688,11 @@ async fn update_group_event_type(
         .map(str::to_string);
 
     let _ = sqlx::query(
-        "UPDATE event_types SET slug = ?, title = ?, description = ?, title_en = ?, description_en = ?, duration_min = ?, slot_interval_min = ?, buffer_before = ?, buffer_after = ?, min_notice_min = ?, requires_confirmation = ?, location_type = ?, location_value = ?, reminder_minutes = ?, visibility = ?, max_additional_guests = ?, scheduling_mode = ?, default_calendar_view = ?, first_slot_only = ?, timezone = ?, cancel_notice_min = ?, reschedule_notice_min = ?, meeting_pattern_override = ? WHERE id = ?",
+        "UPDATE event_types SET slug = ?, title = ?, description = ?, duration_min = ?, slot_interval_min = ?, buffer_before = ?, buffer_after = ?, min_notice_min = ?, requires_confirmation = ?, location_type = ?, location_value = ?, reminder_minutes = ?, visibility = ?, max_additional_guests = ?, scheduling_mode = ?, default_calendar_view = ?, first_slot_only = ?, timezone = ?, cancel_notice_min = ?, reschedule_notice_min = ?, meeting_pattern_override = ? WHERE id = ?",
     )
     .bind(&new_slug)
     .bind(form.title.trim())
     .bind(form.description.as_deref().filter(|s| !s.trim().is_empty()))
-    .bind(form.title_en.as_deref().map(str::trim).filter(|s| !s.is_empty()))
-    .bind(
-        form.description_en
-            .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty()),
-    )
     .bind(parse_int_field(&form.duration_min, 30))
     .bind(parse_optional_positive_int(&form.slot_interval_min))
     .bind(parse_int_field(&form.buffer_before, 0))
@@ -8407,6 +8714,16 @@ async fn update_group_event_type(
     .bind(&et_id)
     .execute(&state.pool)
     .await;
+
+    // Persist per-language translations.
+    let et_default_lang: String =
+        sqlx::query_scalar("SELECT COALESCE(default_lang, 'pt') FROM event_types WHERE id = ?")
+            .bind(&et_id)
+            .fetch_one(&state.pool)
+            .await
+            .unwrap_or_else(|_| "pt".to_string());
+    let (_d, active_langs) = user_content_langs(user);
+    save_event_type_translations(&state.pool, &et_id, &et_default_lang, &active_langs, &form).await;
 
     // Update availability rules. Pass the editing user's profile-default
     // schedule as a fallback so an empty submission falls back to it instead
@@ -8725,8 +9042,8 @@ async fn team_profile_page(
         if viewer_is_member_or_admin {
             sqlx::query_as(
                 "SELECT et.slug,
-                    CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
-                    CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                    COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
+                    COALESCE(NULLIF(TRIM((SELECT etl.description FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.description),
                     et.duration_min, et.visibility
              FROM event_types et
              WHERE et.team_id = ? AND et.enabled = 1
@@ -8741,8 +9058,8 @@ async fn team_profile_page(
         } else {
             sqlx::query_as(
                 "SELECT et.slug,
-                    CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
-                    CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                    COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
+                    COALESCE(NULLIF(TRIM((SELECT etl.description FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.description),
                     et.duration_min, et.visibility
              FROM event_types et
              WHERE et.team_id = ? AND et.enabled = 1 AND et.visibility = 'public'
@@ -8860,8 +9177,8 @@ async fn show_group_slots(
     let lang = crate::i18n::detect_from_headers(&headers);
     let et: Option<(String, String, String, Option<String>, i32, i32, i32, i32, String, Option<String>, String, String, String, String, Option<String>, String)> = sqlx::query_as(
         "SELECT et.id, et.slug,
-                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
-                CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
+                COALESCE(NULLIF(TRIM((SELECT etl.description FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.description),
                 et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.location_type, et.location_value, t.name, et.visibility, et.scheduling_mode, t.visibility, t.invite_token, et.default_calendar_view
          FROM event_types et
          JOIN teams t ON t.id = et.team_id
@@ -9189,8 +9506,8 @@ async fn show_group_book_form(
     let lang = crate::i18n::detect_from_headers(&headers);
     let et: Option<(String, String, String, Option<String>, i32, String, Option<String>, String, String, i32, String, Option<String>, String)> = sqlx::query_as(
         "SELECT et.id, et.slug,
-                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
-                CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
+                COALESCE(NULLIF(TRIM((SELECT etl.description FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.description),
                 et.duration_min, et.location_type, et.location_value, t.name, et.visibility, et.max_additional_guests, t.visibility, t.invite_token, t.id
          FROM event_types et
          JOIN teams t ON t.id = et.team_id
@@ -9384,7 +9701,7 @@ async fn handle_group_booking(
 
     let et: Option<(String, String, String, i32, i32, i32, i32, i32, String, Option<String>, String, Option<i32>, String, i32, String, Option<String>)> = sqlx::query_as(
         "SELECT et.id, et.slug,
-                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
                 et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.requires_confirmation, et.location_type, et.location_value, et.team_id, et.reminder_minutes, et.visibility, et.max_additional_guests, t.visibility, t.invite_token
          FROM event_types et
          JOIN teams t ON t.id = et.team_id
@@ -9809,8 +10126,8 @@ async fn user_profile(
 
     let event_types: Vec<(String, String, Option<String>, i32)> = sqlx::query_as(
         "SELECT et.slug,
-                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
-                CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
+                COALESCE(NULLIF(TRIM((SELECT etl.description FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.description),
                 et.duration_min
          FROM event_types et
          JOIN accounts a ON a.id = et.account_id
@@ -9877,8 +10194,8 @@ async fn show_dynamic_group_slots(
     let owner_username = &usernames[0];
     let et: Option<(String, String, String, Option<String>, i32, i32, i32, i32, String, Option<String>, String, String, Option<String>, Option<String>, String, String)> = sqlx::query_as(
         "SELECT et.id, et.slug,
-                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
-                CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
+                COALESCE(NULLIF(TRIM((SELECT etl.description FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.description),
                 et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.location_type, et.location_value, u.id, u.name, u.title, u.avatar_path, et.visibility, et.default_calendar_view
          FROM event_types et
          JOIN accounts a ON a.id = et.account_id
@@ -10102,8 +10419,8 @@ async fn show_dynamic_group_book_form(
     let owner_username = &usernames[0];
     let et: Option<(String, String, String, Option<String>, i32, String, Option<String>, String, i32)> = sqlx::query_as(
         "SELECT et.id, et.slug,
-                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
-                CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
+                COALESCE(NULLIF(TRIM((SELECT etl.description FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.description),
                 et.duration_min, et.location_type, et.location_value, et.visibility, et.max_additional_guests
          FROM event_types et
          JOIN accounts a ON a.id = et.account_id
@@ -10233,7 +10550,7 @@ async fn handle_dynamic_group_booking(
     let owner_username = &usernames[0];
     let et: Option<(String, String, String, i32, i32, i32, i32, i32, String, Option<String>, String, Option<i32>, String, i32)> = sqlx::query_as(
         "SELECT et.id, et.slug,
-                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
                 et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.requires_confirmation, et.location_type, et.location_value, u.id, et.reminder_minutes, et.visibility, et.max_additional_guests
          FROM event_types et
          JOIN accounts a ON a.id = et.account_id
@@ -10618,8 +10935,8 @@ async fn show_slots_for_user(
 
     let et: Option<(String, String, String, Option<String>, i32, i32, i32, i32, String, Option<String>, String, String)> = sqlx::query_as(
         "SELECT et.id, et.slug,
-                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
-                CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
+                COALESCE(NULLIF(TRIM((SELECT etl.description FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.description),
                 et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.location_type, et.location_value, et.visibility, et.default_calendar_view
          FROM event_types et
          JOIN accounts a ON a.id = et.account_id
@@ -10826,8 +11143,8 @@ async fn show_book_form_for_user(
     let content_lang = crate::i18n::detect_from_headers(&headers);
     let et: Option<(String, String, String, Option<String>, i32, String, Option<String>, String, i32, Option<String>)> = sqlx::query_as(
         "SELECT et.id, et.slug,
-                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
-                CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
+                COALESCE(NULLIF(TRIM((SELECT etl.description FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.description),
                 et.duration_min, et.location_type, et.location_value, et.visibility, et.max_additional_guests, u.language
          FROM event_types et
          JOIN accounts a ON a.id = et.account_id
@@ -11017,7 +11334,7 @@ async fn handle_booking_for_user(
     let lang = crate::i18n::detect_from_headers(&headers);
     let et: Option<(String, String, String, i32, i32, i32, i32, i32, String, Option<String>, String, Option<i32>, String, i32, Option<String>)> = sqlx::query_as(
         "SELECT et.id, et.slug,
-                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
                 et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.requires_confirmation, et.location_type, et.location_value, u.id, et.reminder_minutes, et.visibility, et.max_additional_guests, u.language
          FROM event_types et
          JOIN accounts a ON a.id = et.account_id
@@ -16355,7 +16672,7 @@ async fn guest_cancel_form(
     let lang = crate::i18n::detect_from_headers(&headers);
     let booking: Option<(String, String, String, String, String, String)> = sqlx::query_as(
         "SELECT b.guest_name, b.guest_email, b.start_at, b.end_at,
-                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
                 u.name
              FROM bookings b
              JOIN event_types et ON et.id = b.event_type_id
@@ -16462,7 +16779,7 @@ async fn guest_cancel_booking(
     let booking: Option<(String, String, String, String, String, String, String, String, String, String, String)> =
         sqlx::query_as(
             "SELECT b.id, b.uid, b.guest_name, b.guest_email, b.start_at, b.end_at,
-                    CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                    COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
                     u.name, COALESCE(u.booking_email, u.email), COALESCE(b.guest_timezone, 'UTC'), et.id
              FROM bookings b
              JOIN event_types et ON et.id = b.event_type_id
@@ -16739,7 +17056,7 @@ async fn guest_reschedule_slots(
     };
 
     let et_title: String = sqlx::query_scalar(
-        "SELECT CASE WHEN ? = 'pt' THEN title ELSE COALESCE(NULLIF(TRIM(title_en), ''), title) END FROM event_types WHERE id = ?",
+        "SELECT COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = event_types.id AND etl.lang = ?)), ''), event_types.title) FROM event_types WHERE id = ?",
     )
     .bind(lang)
     .bind(&et_id)
@@ -16950,7 +17267,7 @@ async fn guest_reschedule_booking(
     )> = sqlx::query_as(
         "SELECT b.id, b.uid, b.guest_name, b.guest_email, b.start_at, b.end_at,
                     et.id,
-                    CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                    COALESCE(NULLIF(TRIM((SELECT etl.title FROM event_type_translations etl WHERE etl.event_type_id = et.id AND etl.lang = ?)), ''), et.title),
                     u.id, u.name, et.duration_min,
                     COALESCE(NULLIF(b.meeting_url, ''), et.location_value),
                     b.caldav_calendar_href, COALESCE(b.guest_timezone, 'UTC'),

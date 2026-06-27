@@ -504,27 +504,30 @@
     </style>
     {% endblock %}
     {% block lang_toggle %}
-        <div id="lang-toggle" class="lang-toggle" role="group" aria-label="Language">
-          <button type="button" data-lang="pt">PT</button>
-          <button type="button" data-lang="en">EN</button>
-        </div>
+        <select id="lang-toggle" class="lang-toggle" aria-label="Language">
+          <option value="en">English</option>
+          <option value="pt">Português</option>
+          <option value="es">Español</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="it">Italiano</option>
+        </select>
         <style>
-      .lang-toggle { position: fixed; top: 0.75rem; right: 3rem; z-index: 10; display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; background: var(--surface); }
-      .lang-toggle button { border: none; background: none; cursor: pointer; font-family: inherit; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.03em; padding: 0.25rem 0.5rem; color: var(--text-muted); line-height: 1.2; transition: color 0.2s ease, background 0.2s ease; }
-      .lang-toggle button.active { background: var(--accent); color: #fff; }
-      .lang-toggle button:not(.active):hover { color: var(--text); background: var(--surface-hover, rgba(127,127,127,0.12)); }
+      .lang-toggle { position: fixed; top: 0.7rem; right: 3rem; z-index: 10; font-family: inherit; font-size: 0.72rem; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.2rem 0.4rem; cursor: pointer; }
+      .lang-toggle:hover { color: var(--text); border-color: var(--border-hover, var(--border)); }
     </style>
         <script>
         (function () {
+          var SUP = ['en', 'pt', 'es', 'fr', 'de', 'it'];
           function setLangCookie(l) {
             document.cookie = 'calrs_lang=' + l + '; path=/; max-age=31536000; samesite=lax' + (location.protocol === 'https:' ? '; secure' : '');
           }
-          // ?lang=pt|en override: persist as a cookie, drop the param, reload so
-          // the server re-renders in the chosen language.
+          // ?lang=<code> override: persist as a cookie, drop the param, reload
+          // so the server re-renders in the chosen language.
           try {
             var p = new URLSearchParams(location.search);
             var q = (p.get('lang') || '').toLowerCase();
-            if (q === 'pt' || q === 'en') {
+            if (SUP.indexOf(q) !== -1) {
               setLangCookie(q);
               p.delete('lang');
               var qs = p.toString();
@@ -532,16 +535,14 @@
               return;
             }
           } catch (e) {}
-          var box = document.getElementById('lang-toggle');
-          if (!box) return;
-          var cur = (document.documentElement.lang || 'en').toLowerCase().indexOf('pt') === 0 ? 'pt' : 'en';
-          box.querySelectorAll('button').forEach(function (b) {
-            if (b.dataset.lang === cur) b.classList.add('active');
-            b.addEventListener('click', function () {
-              if (b.dataset.lang === cur) return;
-              setLangCookie(b.dataset.lang);
-              location.reload();
-            });
+          var sel = document.getElementById('lang-toggle');
+          if (!sel) return;
+          var cur = (document.documentElement.lang || 'en').toLowerCase().slice(0, 2);
+          if (SUP.indexOf(cur) === -1) cur = 'en';
+          sel.value = cur;
+          sel.addEventListener('change', function () {
+            setLangCookie(sel.value);
+            location.reload();
           });
         })();
         </script>
