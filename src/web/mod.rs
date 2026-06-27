@@ -9892,12 +9892,17 @@ async fn show_dynamic_group_slots(
     // Load event type from first user (owner)
     let owner_username = &usernames[0];
     let et: Option<(String, String, String, Option<String>, i32, i32, i32, i32, String, Option<String>, String, String, Option<String>, Option<String>, String, String)> = sqlx::query_as(
-        "SELECT et.id, et.slug, et.title, et.description, et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.location_type, et.location_value, u.id, u.name, u.title, u.avatar_path, et.visibility, et.default_calendar_view
+        "SELECT et.id, et.slug,
+                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.location_type, et.location_value, u.id, u.name, u.title, u.avatar_path, et.visibility, et.default_calendar_view
          FROM event_types et
          JOIN accounts a ON a.id = et.account_id
          JOIN users u ON u.id = a.user_id
          WHERE u.username = ? AND et.slug = ? AND et.enabled = 1 AND u.enabled = 1",
     )
+    .bind(lang)
+    .bind(lang)
     .bind(owner_username)
     .bind(slug)
     .fetch_optional(&state.pool)
@@ -10112,12 +10117,17 @@ async fn show_dynamic_group_book_form(
 
     let owner_username = &usernames[0];
     let et: Option<(String, String, String, Option<String>, i32, String, Option<String>, String, i32)> = sqlx::query_as(
-        "SELECT et.id, et.slug, et.title, et.description, et.duration_min, et.location_type, et.location_value, et.visibility, et.max_additional_guests
+        "SELECT et.id, et.slug,
+                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                et.duration_min, et.location_type, et.location_value, et.visibility, et.max_additional_guests
          FROM event_types et
          JOIN accounts a ON a.id = et.account_id
          JOIN users u ON u.id = a.user_id
          WHERE u.username = ? AND et.slug = ? AND et.enabled = 1 AND u.enabled = 1",
     )
+    .bind(lang)
+    .bind(lang)
     .bind(owner_username)
     .bind(slug)
     .fetch_optional(&state.pool)
@@ -16360,13 +16370,16 @@ async fn guest_cancel_form(
 ) -> impl IntoResponse {
     let lang = crate::i18n::detect_from_headers(&headers);
     let booking: Option<(String, String, String, String, String, String)> = sqlx::query_as(
-        "SELECT b.guest_name, b.guest_email, b.start_at, b.end_at, et.title, u.name
+        "SELECT b.guest_name, b.guest_email, b.start_at, b.end_at,
+                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                u.name
              FROM bookings b
              JOIN event_types et ON et.id = b.event_type_id
              JOIN accounts a ON a.id = et.account_id
              JOIN users u ON u.id = a.user_id
              WHERE b.cancel_token = ? AND b.status IN ('confirmed', 'pending')",
     )
+    .bind(lang)
     .bind(&token)
     .fetch_optional(&state.pool)
     .await
@@ -16464,13 +16477,16 @@ async fn guest_cancel_booking(
     let lang = crate::i18n::detect_from_headers(&headers);
     let booking: Option<(String, String, String, String, String, String, String, String, String, String, String)> =
         sqlx::query_as(
-            "SELECT b.id, b.uid, b.guest_name, b.guest_email, b.start_at, b.end_at, et.title, u.name, COALESCE(u.booking_email, u.email), COALESCE(b.guest_timezone, 'UTC'), et.id
+            "SELECT b.id, b.uid, b.guest_name, b.guest_email, b.start_at, b.end_at,
+                    CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                    u.name, COALESCE(u.booking_email, u.email), COALESCE(b.guest_timezone, 'UTC'), et.id
              FROM bookings b
              JOIN event_types et ON et.id = b.event_type_id
              JOIN accounts a ON a.id = et.account_id
              JOIN users u ON u.id = a.user_id
              WHERE b.cancel_token = ? AND b.status IN ('confirmed', 'pending')",
         )
+        .bind(lang)
         .bind(&token)
         .fetch_optional(&state.pool)
         .await
@@ -16738,11 +16754,14 @@ async fn guest_reschedule_slots(
         None => return Html("Event type not found.".to_string()).into_response(),
     };
 
-    let et_title: String = sqlx::query_scalar("SELECT title FROM event_types WHERE id = ?")
-        .bind(&et_id)
-        .fetch_one(&state.pool)
-        .await
-        .unwrap_or_default();
+    let et_title: String = sqlx::query_scalar(
+        "SELECT CASE WHEN ? = 'pt' THEN title ELSE COALESCE(NULLIF(TRIM(title_en), ''), title) END FROM event_types WHERE id = ?",
+    )
+    .bind(lang)
+    .bind(&et_id)
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or_default();
 
     let old_date_label = format_date_label(&start_at, lang);
     let old_start_time = extract_time_24h(&start_at);
@@ -16946,7 +16965,9 @@ async fn guest_reschedule_booking(
         i32,
     )> = sqlx::query_as(
         "SELECT b.id, b.uid, b.guest_name, b.guest_email, b.start_at, b.end_at,
-                    et.id, et.title, u.id, u.name, et.duration_min,
+                    et.id,
+                    CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                    u.id, u.name, et.duration_min,
                     COALESCE(NULLIF(b.meeting_url, ''), et.location_value),
                     b.caldav_calendar_href, COALESCE(b.guest_timezone, 'UTC'),
                     et.min_notice_min, b.reschedule_by_host
@@ -16956,6 +16977,7 @@ async fn guest_reschedule_booking(
              JOIN users u ON u.id = a.user_id
              WHERE b.reschedule_token = ? AND b.status IN ('confirmed', 'pending')",
     )
+    .bind(lang)
     .bind(&token)
     .fetch_optional(&state.pool)
     .await
