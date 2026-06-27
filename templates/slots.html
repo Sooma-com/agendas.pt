@@ -1428,6 +1428,26 @@
 
   var weekOffset = 0;
 
+  // Open the week view on the first week that actually has availability, so the
+  // visitor doesn't land on an empty current week (past weekdays / weekend).
+  (function () {
+    var keys = Object.keys(availableDates).filter(function (k) { return k >= todayDate; }).sort();
+    if (!keys.length) return;
+    function mondayOf(y, m, d) {
+      var x = new Date(y, m - 1, d);
+      var dow = x.getDay();
+      x.setDate(x.getDate() + (dow === 0 ? -6 : 1 - dow));
+      x.setHours(0, 0, 0, 0);
+      return x;
+    }
+    var tp = todayDate.split('-');
+    var fp = keys[0].split('-');
+    var tm = mondayOf(parseInt(tp[0], 10), parseInt(tp[1], 10), parseInt(tp[2], 10));
+    var fm = mondayOf(parseInt(fp[0], 10), parseInt(fp[1], 10), parseInt(fp[2], 10));
+    var off = Math.round((fm - tm) / (7 * 86400000));
+    if (off > 0) weekOffset = off;
+  })();
+
   // Override getWeekDates to use offset, anchored on *today* so week
   // navigation is independent of which month's data is currently loaded
   // (fixes empty days when a week straddles a month boundary).
