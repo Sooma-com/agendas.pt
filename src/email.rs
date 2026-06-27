@@ -1958,11 +1958,11 @@ pub async fn load_smtp_status(pool: &SqlitePool) -> Result<Option<SmtpStatus>> {
 pub async fn send_test_email(config: &SmtpConfig, to_email: &str) -> Result<()> {
     let to = to_email.parse()?;
 
-    let plain = "This is a test email from calrs. SMTP is working!".to_string();
+    let plain = "This is a test email from Agendas.pt. SMTP is working!".to_string();
 
     let html = render_html_email(
         "SMTP test",
-        "This is a test email from calrs. SMTP is working!",
+        "This is a test email from Agendas.pt. SMTP is working!",
         "#6366f1",
         &[],
         None,
