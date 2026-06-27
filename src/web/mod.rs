@@ -4341,6 +4341,10 @@ struct EventTypeForm {
     title: String,
     slug: String,
     description: Option<String>,
+    // English variants of title/description. Visitor booking pages render these
+    // for non-Portuguese guests (falling back to the base fields when blank).
+    title_en: Option<String>,
+    description_en: Option<String>,
     #[serde(default)]
     duration_min: String,
     #[serde(default)]
@@ -4699,14 +4703,21 @@ async fn create_event_type(
         .map(str::to_string);
 
     let _ = sqlx::query(
-        "INSERT INTO event_types (id, account_id, slug, title, description, duration_min, slot_interval_min, buffer_before, buffer_after, min_notice_min, requires_confirmation, location_type, location_value, team_id, created_by_user_id, reminder_minutes, visibility, max_additional_guests, default_calendar_view, first_slot_only, timezone, cancel_notice_min, reschedule_notice_min, meeting_pattern_override, follow_default_availability)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO event_types (id, account_id, slug, title, description, title_en, description_en, duration_min, slot_interval_min, buffer_before, buffer_after, min_notice_min, requires_confirmation, location_type, location_value, team_id, created_by_user_id, reminder_minutes, visibility, max_additional_guests, default_calendar_view, first_slot_only, timezone, cancel_notice_min, reschedule_notice_min, meeting_pattern_override, follow_default_availability)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&et_id)
     .bind(&account_id)
     .bind(&slug)
     .bind(form.title.trim())
     .bind(form.description.as_deref().filter(|s| !s.trim().is_empty()))
+    .bind(form.title_en.as_deref().map(str::trim).filter(|s| !s.is_empty()))
+    .bind(
+        form.description_en
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty()),
+    )
     .bind(parse_int_field(&form.duration_min, 30))
     .bind(parse_optional_positive_int(&form.slot_interval_min))
     .bind(parse_int_field(&form.buffer_before, 0))
@@ -5104,10 +5115,19 @@ async fn edit_event_type_form(
             .await
             .unwrap_or(0);
 
+    let (et_title_en, et_desc_en): (Option<String>, Option<String>) =
+        sqlx::query_as("SELECT title_en, description_en FROM event_types WHERE id = ?")
+            .bind(&et_id)
+            .fetch_one(&state.pool)
+            .await
+            .unwrap_or((None, None));
+
     Html(
         tmpl.render(context! {
             editing => true,
             form_follow_default_availability => follow_default != 0,
+            form_title_en => et_title_en.unwrap_or_default(),
+            form_description_en => et_desc_en.unwrap_or_default(),
             original_slug => et_slug,
             calendars => calendars_ctx,
             selected_calendar_ids => selected_calendar_ids,
@@ -5266,11 +5286,18 @@ async fn update_event_type(
         .map(str::to_string);
 
     let _ = sqlx::query(
-        "UPDATE event_types SET slug = ?, title = ?, description = ?, duration_min = ?, slot_interval_min = ?, buffer_before = ?, buffer_after = ?, min_notice_min = ?, requires_confirmation = ?, location_type = ?, location_value = ?, reminder_minutes = ?, visibility = ?, max_additional_guests = ?, scheduling_mode = ?, default_calendar_view = ?, first_slot_only = ?, timezone = ?, cancel_notice_min = ?, reschedule_notice_min = ?, meeting_pattern_override = ? WHERE id = ?",
+        "UPDATE event_types SET slug = ?, title = ?, description = ?, title_en = ?, description_en = ?, duration_min = ?, slot_interval_min = ?, buffer_before = ?, buffer_after = ?, min_notice_min = ?, requires_confirmation = ?, location_type = ?, location_value = ?, reminder_minutes = ?, visibility = ?, max_additional_guests = ?, scheduling_mode = ?, default_calendar_view = ?, first_slot_only = ?, timezone = ?, cancel_notice_min = ?, reschedule_notice_min = ?, meeting_pattern_override = ? WHERE id = ?",
     )
     .bind(&new_slug)
     .bind(form.title.trim())
     .bind(form.description.as_deref().filter(|s| !s.trim().is_empty()))
+    .bind(form.title_en.as_deref().map(str::trim).filter(|s| !s.is_empty()))
+    .bind(
+        form.description_en
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty()),
+    )
     .bind(parse_int_field(&form.duration_min, 30))
     .bind(parse_optional_positive_int(&form.slot_interval_min))
     .bind(parse_int_field(&form.buffer_before, 0))
@@ -6679,6 +6706,8 @@ fn render_event_type_form_error(
             form_title => form.title.as_str(),
             form_slug => form.slug.as_str(),
             form_description => form.description.as_deref().unwrap_or(""),
+            form_title_en => form.title_en.as_deref().unwrap_or(""),
+            form_description_en => form.description_en.as_deref().unwrap_or(""),
             form_duration => parse_int_field(&form.duration_min, 30),
             form_slot_interval => parse_optional_positive_int(&form.slot_interval_min).unwrap_or(0),
             form_buffer_before => parse_int_field(&form.buffer_before, 0),
@@ -7813,14 +7842,21 @@ async fn create_group_event_type(
         .map(str::to_string);
 
     let _ = sqlx::query(
-        "INSERT INTO event_types (id, account_id, slug, title, description, duration_min, slot_interval_min, buffer_before, buffer_after, min_notice_min, requires_confirmation, location_type, location_value, team_id, created_by_user_id, default_calendar_view, first_slot_only, timezone, cancel_notice_min, reschedule_notice_min, meeting_pattern_override)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO event_types (id, account_id, slug, title, description, title_en, description_en, duration_min, slot_interval_min, buffer_before, buffer_after, min_notice_min, requires_confirmation, location_type, location_value, team_id, created_by_user_id, default_calendar_view, first_slot_only, timezone, cancel_notice_min, reschedule_notice_min, meeting_pattern_override)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&et_id)
     .bind(&account_id)
     .bind(&slug)
     .bind(form.title.trim())
     .bind(form.description.as_deref().filter(|s| !s.trim().is_empty()))
+    .bind(form.title_en.as_deref().map(str::trim).filter(|s| !s.is_empty()))
+    .bind(
+        form.description_en
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty()),
+    )
     .bind(parse_int_field(&form.duration_min, 30))
     .bind(parse_optional_positive_int(&form.slot_interval_min))
     .bind(parse_int_field(&form.buffer_before, 0))
@@ -8171,6 +8207,13 @@ async fn edit_group_event_type_form(
         Err(e) => return internal_error_html("template render", &e),
     };
 
+    let (et_title_en, et_desc_en): (Option<String>, Option<String>) =
+        sqlx::query_as("SELECT title_en, description_en FROM event_types WHERE id = ?")
+            .bind(&et_id)
+            .fetch_one(&state.pool)
+            .await
+            .unwrap_or((None, None));
+
     let (impersonating, impersonating_name, _) = impersonation_ctx(&auth_user);
     Html(
         tmpl.render(context! {
@@ -8181,6 +8224,8 @@ async fn edit_group_event_type_form(
             form_title => et_title,
             form_slug => et_slug,
             form_description => et_desc.unwrap_or_default(),
+            form_title_en => et_title_en.unwrap_or_default(),
+            form_description_en => et_desc_en.unwrap_or_default(),
             form_duration => duration,
             form_slot_interval => slot_interval.unwrap_or(0),
             form_buffer_before => buf_before,
@@ -8345,11 +8390,18 @@ async fn update_group_event_type(
         .map(str::to_string);
 
     let _ = sqlx::query(
-        "UPDATE event_types SET slug = ?, title = ?, description = ?, duration_min = ?, slot_interval_min = ?, buffer_before = ?, buffer_after = ?, min_notice_min = ?, requires_confirmation = ?, location_type = ?, location_value = ?, reminder_minutes = ?, visibility = ?, max_additional_guests = ?, scheduling_mode = ?, default_calendar_view = ?, first_slot_only = ?, timezone = ?, cancel_notice_min = ?, reschedule_notice_min = ?, meeting_pattern_override = ? WHERE id = ?",
+        "UPDATE event_types SET slug = ?, title = ?, description = ?, title_en = ?, description_en = ?, duration_min = ?, slot_interval_min = ?, buffer_before = ?, buffer_after = ?, min_notice_min = ?, requires_confirmation = ?, location_type = ?, location_value = ?, reminder_minutes = ?, visibility = ?, max_additional_guests = ?, scheduling_mode = ?, default_calendar_view = ?, first_slot_only = ?, timezone = ?, cancel_notice_min = ?, reschedule_notice_min = ?, meeting_pattern_override = ? WHERE id = ?",
     )
     .bind(&new_slug)
     .bind(form.title.trim())
     .bind(form.description.as_deref().filter(|s| !s.trim().is_empty()))
+    .bind(form.title_en.as_deref().map(str::trim).filter(|s| !s.is_empty()))
+    .bind(
+        form.description_en
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty()),
+    )
     .bind(parse_int_field(&form.duration_min, 30))
     .bind(parse_optional_positive_int(&form.slot_interval_min))
     .bind(parse_int_field(&form.buffer_before, 0))
@@ -8683,25 +8735,37 @@ async fn team_profile_page(
     // including private/internal — they have view access via the slot pages
     // anyway, so showing them on the profile makes them discoverable. Anonymous
     // visitors and non-members continue to see only public event types.
+    // Team profile follows the visitor's browser language for title/description.
+    let content_lang = crate::i18n::detect_from_headers(&headers);
     let event_types: Vec<(String, String, Option<String>, i32, String)> =
         if viewer_is_member_or_admin {
             sqlx::query_as(
-                "SELECT et.slug, et.title, et.description, et.duration_min, et.visibility
+                "SELECT et.slug,
+                    CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                    CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                    et.duration_min, et.visibility
              FROM event_types et
              WHERE et.team_id = ? AND et.enabled = 1
              ORDER BY et.created_at",
             )
+            .bind(content_lang)
+            .bind(content_lang)
             .bind(&team_id)
             .fetch_all(&state.pool)
             .await
             .unwrap_or_default()
         } else {
             sqlx::query_as(
-                "SELECT et.slug, et.title, et.description, et.duration_min, et.visibility
+                "SELECT et.slug,
+                    CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                    CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                    et.duration_min, et.visibility
              FROM event_types et
              WHERE et.team_id = ? AND et.enabled = 1 AND et.visibility = 'public'
              ORDER BY et.created_at",
             )
+            .bind(content_lang)
+            .bind(content_lang)
             .bind(&team_id)
             .fetch_all(&state.pool)
             .await
@@ -8728,7 +8792,7 @@ async fn team_profile_page(
     // Default the page language to a team member's preference (mirrors the
     // personal profile using the host's language), falling back to the guest's
     // Accept-Language header.
-    let team_lang = members.iter().find_map(|(_, _, _, l, _)| l.clone());
+    let _team_lang = members.iter().find_map(|(_, _, _, l, _)| l.clone());
 
     let members_ctx: Vec<minijinja::Value> = members
         .iter()
@@ -8781,7 +8845,7 @@ async fn team_profile_page(
         String::new()
     };
 
-    let lang = crate::i18n::resolve(team_lang.as_deref(), &headers);
+    let lang = crate::i18n::detect_from_headers(&headers);
     Html(
         tmpl.render(context! {
             lang => lang,
@@ -8811,11 +8875,16 @@ async fn show_group_slots(
     let embed = query.embed_params();
     let lang = crate::i18n::detect_from_headers(&headers);
     let et: Option<(String, String, String, Option<String>, i32, i32, i32, i32, String, Option<String>, String, String, String, String, Option<String>, String)> = sqlx::query_as(
-        "SELECT et.id, et.slug, et.title, et.description, et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.location_type, et.location_value, t.name, et.visibility, et.scheduling_mode, t.visibility, t.invite_token, et.default_calendar_view
+        "SELECT et.id, et.slug,
+                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.location_type, et.location_value, t.name, et.visibility, et.scheduling_mode, t.visibility, t.invite_token, et.default_calendar_view
          FROM event_types et
          JOIN teams t ON t.id = et.team_id
          WHERE t.slug = ? AND et.slug = ? AND et.enabled = 1",
     )
+    .bind(lang)
+    .bind(lang)
     .bind(&team_slug)
     .bind(&slug)
     .fetch_optional(&state.pool)
@@ -9135,11 +9204,16 @@ async fn show_group_book_form(
     let embed = query.embed_params();
     let lang = crate::i18n::detect_from_headers(&headers);
     let et: Option<(String, String, String, Option<String>, i32, String, Option<String>, String, String, i32, String, Option<String>, String)> = sqlx::query_as(
-        "SELECT et.id, et.slug, et.title, et.description, et.duration_min, et.location_type, et.location_value, t.name, et.visibility, et.max_additional_guests, t.visibility, t.invite_token, t.id
+        "SELECT et.id, et.slug,
+                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                et.duration_min, et.location_type, et.location_value, t.name, et.visibility, et.max_additional_guests, t.visibility, t.invite_token, t.id
          FROM event_types et
          JOIN teams t ON t.id = et.team_id
          WHERE t.slug = ? AND et.slug = ? AND et.enabled = 1",
     )
+    .bind(lang)
+    .bind(lang)
     .bind(&team_slug)
     .bind(&slug)
     .fetch_optional(&state.pool)
@@ -9738,20 +9812,27 @@ async fn user_profile(
     .await
     .unwrap_or(None);
 
-    let (user_id, user_name, user_title, user_bio, avatar_path, language) = match user {
+    let (user_id, user_name, user_title, user_bio, avatar_path, _language) = match user {
         Some(u) => u,
         None => return Html("User not found.".to_string()),
     };
-    let lang = crate::i18n::resolve(language.as_deref(), &headers);
+    // Public pages follow the visitor's browser language (not the host's saved
+    // UI preference) so title/description and chrome render in the guest's lang.
+    let lang = crate::i18n::detect_from_headers(&headers);
 
     let event_types: Vec<(String, String, Option<String>, i32)> = sqlx::query_as(
-        "SELECT et.slug, et.title, et.description, et.duration_min
+        "SELECT et.slug,
+                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                et.duration_min
          FROM event_types et
          JOIN accounts a ON a.id = et.account_id
          WHERE a.user_id = ? AND et.enabled = 1 AND et.visibility = 'public'
          AND et.team_id IS NULL
          ORDER BY et.created_at",
     )
+    .bind(lang)
+    .bind(lang)
     .bind(&user_id)
     .fetch_all(&state.pool)
     .await
@@ -10527,19 +10608,25 @@ async fn show_slots_for_user(
     .await
     .unwrap_or(None);
 
-    let (host_user_id, host_name, host_title, host_avatar_path, user_lang) = match user {
+    let (host_user_id, host_name, host_title, host_avatar_path, _user_lang) = match user {
         Some(user) => user,
         None => return Html("User not found.".to_string()).into_response(),
     };
 
-    let lang = crate::i18n::resolve(user_lang.as_deref(), &headers);
+    // Public booking pages follow the visitor's browser language.
+    let lang = crate::i18n::detect_from_headers(&headers);
 
     let et: Option<(String, String, String, Option<String>, i32, i32, i32, i32, String, Option<String>, String, String)> = sqlx::query_as(
-        "SELECT et.id, et.slug, et.title, et.description, et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.location_type, et.location_value, et.visibility, et.default_calendar_view
+        "SELECT et.id, et.slug,
+                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.location_type, et.location_value, et.visibility, et.default_calendar_view
          FROM event_types et
          JOIN accounts a ON a.id = et.account_id
          WHERE a.user_id = ? AND et.slug = ? AND et.enabled = 1",
     )
+    .bind(lang)
+    .bind(lang)
     .bind(&host_user_id)
     .bind(&slug)
     .fetch_optional(&state.pool)
@@ -10736,13 +10823,19 @@ async fn show_book_form_for_user(
             .into_response();
     }
 
+    let content_lang = crate::i18n::detect_from_headers(&headers);
     let et: Option<(String, String, String, Option<String>, i32, String, Option<String>, String, i32, Option<String>)> = sqlx::query_as(
-        "SELECT et.id, et.slug, et.title, et.description, et.duration_min, et.location_type, et.location_value, et.visibility, et.max_additional_guests, u.language
+        "SELECT et.id, et.slug,
+                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                CASE WHEN ? = 'pt' THEN et.description ELSE COALESCE(NULLIF(TRIM(et.description_en), ''), et.description) END,
+                et.duration_min, et.location_type, et.location_value, et.visibility, et.max_additional_guests, u.language
          FROM event_types et
          JOIN accounts a ON a.id = et.account_id
          JOIN users u ON u.id = a.user_id
          WHERE u.username = ? AND et.slug = ? AND et.enabled = 1 AND u.enabled = 1",
     )
+    .bind(content_lang)
+    .bind(content_lang)
     .bind(&username)
     .bind(&slug)
     .fetch_optional(&state.pool)
@@ -10759,13 +10852,14 @@ async fn show_book_form_for_user(
         loc_value,
         visibility,
         max_additional_guests,
-        user_lang,
+        _user_lang,
     ) = match et {
         Some(e) => e,
         None => return Html("Event type not found.".to_string()).into_response(),
     };
 
-    let lang = crate::i18n::resolve(user_lang.as_deref(), &headers);
+    // Public booking pages follow the visitor's browser language.
+    let lang = crate::i18n::detect_from_headers(&headers);
 
     // Validate invite token for private event types
     let invite_guest_name;
@@ -20440,10 +20534,10 @@ mod tests {
     }
 
     #[test]
-    fn format_date_label_french() {
+    fn format_date_label_portuguese() {
         assert_eq!(
-            format_date_label("2026-03-15", "fr"),
-            "dimanche 15 mars 2026"
+            format_date_label("2026-03-15", "pt"),
+            "domingo, 15 de março de 2026"
         );
     }
 
