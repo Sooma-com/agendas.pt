@@ -37,10 +37,12 @@
     gap: 0.625rem;
   }
   .sidebar-brand img {
-    width: 36px;
-    height: 36px;
+    height: 26px;
+    width: auto;
+    max-width: 100%;
     object-fit: contain;
   }
+  html.dark .sidebar-brand img { filter: brightness(0) invert(1); }
   .sidebar-brand-name {
     font-weight: 700;
     font-size: 1.6rem;
@@ -139,6 +141,7 @@
     text-align: center;
     flex-shrink: 0;
   }
+  .sidebar-link .icon svg { width: 18px; height: 18px; display: block; margin: 0 auto; }
 
   .sidebar-bottom {
     padding: 0.75rem 1rem;
@@ -293,53 +296,52 @@
 </style>
 
 <div class="dashboard-layout">
-  <button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open'); document.querySelector('.sidebar-overlay').classList.toggle('open');">&#9776;</button>
+  <button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open'); document.querySelector('.sidebar-overlay').classList.toggle('open');"><svg xmlns="http://www.w3.org/2000/svg" style="width:22px;height:22px;display:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16" /><path d="M4 12h16" /><path d="M4 19h16" /></svg></button>
   <div class="sidebar-overlay" onclick="document.querySelector('.sidebar').classList.remove('open'); this.classList.remove('open');"></div>
 
   <nav class="sidebar">
     <a href="/dashboard" class="sidebar-brand" style="text-decoration: none; color: inherit;">
       <img src="/logo" alt="Sooma">
-      <span class="sidebar-brand-name"><span style="color: var(--accent);">cal</span><span style="color: #e45724;">rs</span></span>
     </a>
 
     <div class="sidebar-nav">
       <div class="sidebar-section">
         <div class="sidebar-section-label">Scheduling</div>
         <a href="/dashboard" class="sidebar-link {% if sidebar.active == 'overview' %}active{% endif %}">
-          <span class="icon">&#9632;</span> Overview
+          <span class="icon"><rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" /></span> Overview
         </a>
         <a href="/dashboard/event-types" class="sidebar-link {% if sidebar.active == 'event-types' %}active{% endif %}">
-          <span class="icon">&#128197;</span> Event Types
+          <span class="icon"><path d="M16 14v2.2l1.6 1" /><path d="M16 2v4" /><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5" /><path d="M3 10h5" /><path d="M8 2v4" /><circle cx="16" cy="16" r="6" /></span> Event Types
         </a>
         <a href="/dashboard/bookings" class="sidebar-link {% if sidebar.active == 'bookings' %}active{% endif %}">
-          <span class="icon">&#128203;</span> Bookings
+          <span class="icon"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /><path d="m9 16 2 2 4-4" /></span> Bookings
         </a>
         <a href="/dashboard/teams" class="sidebar-link {% if sidebar.active == 'teams' %}active{% endif %}">
-          <span class="icon">&#128101;</span> Teams
+          <span class="icon"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><path d="M16 3.128a4 4 0 0 1 0 7.744" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><circle cx="9" cy="7" r="4" /></span> Teams
         </a>
       </div>
 
       <div class="sidebar-section">
         <div class="sidebar-section-label">Shared Links</div>
         <a href="/dashboard/invite-links" class="sidebar-link {% if sidebar.active == 'organization' %}active{% endif %}">
-          <span class="icon">&#127970;</span> Invite Links
+          <span class="icon"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></span> Invite Links
         </a>
       </div>
 
       <div class="sidebar-section">
         <div class="sidebar-section-label">Calendars</div>
         <a href="/dashboard/sources" class="sidebar-link {% if sidebar.active == 'sources' %}active{% endif %}">
-          <span class="icon">&#128197;</span> Sources
+          <span class="icon"><path d="m15.228 16.852-.923-.383" /><path d="m15.228 19.148-.923.383" /><path d="M16 2v4" /><path d="m16.47 14.305.382.923" /><path d="m16.852 20.772-.383.924" /><path d="m19.148 15.228.383-.923" /><path d="m19.53 21.696-.382-.924" /><path d="m20.772 16.852.924-.383" /><path d="m20.772 19.148.924.383" /><path d="M21 10.592V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6" /><path d="M3 10h18" /><path d="M8 2v4" /><circle cx="18" cy="18" r="3" /></span> Sources
         </a>
       </div>
 
       <div class="sidebar-section">
         <div class="sidebar-section-label">Personal</div>
         <a href="/dashboard/settings" class="sidebar-link {% if sidebar.active == 'settings' %}active{% endif %}">
-          <span class="icon">&#9881;</span> Profile & Settings
+          <span class="icon"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /><circle cx="12" cy="12" r="3" /></span> Profile & Settings
         </a>
         <a href="/dashboard/troubleshoot" data-calrs-sync class="sidebar-link {% if sidebar.active == 'troubleshoot' %}active{% endif %}">
-          <span class="icon">&#128269;</span> Troubleshoot
+          <span class="icon"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z" /></span> Troubleshoot
         </a>
       </div>
 
@@ -347,7 +349,7 @@
       <div class="sidebar-section">
         <div class="sidebar-section-label">Admin</div>
         <a href="/dashboard/admin" class="sidebar-link {% if sidebar.active == 'admin' %}active{% endif %}">
-          <span class="icon">&#128272;</span> Admin Panel
+          <span class="icon"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></span> Admin Panel
         </a>
       </div>
       {% endif %}
@@ -369,7 +371,7 @@
           </div>
         </a>
         <form method="post" action="/auth/logout" style="flex-shrink: 0;">
-          <button type="submit" class="sidebar-signout" title="Sign out" aria-label="Sign out">&#8592;</button>
+          <button type="submit" class="sidebar-signout" title="Sign out" aria-label="Sign out"><svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;display:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /></svg></button>
         </form>
       </div>
       {% if sidebar.version %}<div style="font-size: 0.7rem; color: var(--text-muted); padding: 0.25rem 0.75rem 0; opacity: 0.6;"><a href="https://github.com/olivierlambert/calrs/releases/tag/v{{ sidebar.version }}" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;" title="View release notes">v{{ sidebar.version }}</a></div>{% endif %}
