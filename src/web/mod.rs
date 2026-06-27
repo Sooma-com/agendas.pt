@@ -2751,6 +2751,13 @@ struct SettingsForm {
     username: Option<String>,
     title: Option<String>,
     bio: Option<String>,
+    // Per-language bio variants (default language uses `bio` above).
+    bio_en: Option<String>,
+    bio_pt: Option<String>,
+    bio_es: Option<String>,
+    bio_fr: Option<String>,
+    bio_de: Option<String>,
+    bio_it: Option<String>,
     booking_email: Option<String>,
     timezone: Option<String>,
     allow_dynamic_group: Option<String>,
@@ -2786,6 +2793,7 @@ async fn settings_page(
         &impersonating_name,
         &avail,
     )
+    .await
 }
 
 /// Convert a user's default availability rules into "busy" times for hours OUTSIDE
@@ -3002,7 +3010,7 @@ async fn dashboard_availability_default(
     axum::Json(serde_json::json!({ "schedule": schedule }))
 }
 
-fn settings_render(
+async fn settings_render(
     state: &AppState,
     user: &crate::models::User,
     success: Option<&str>,
@@ -3049,6 +3057,44 @@ fn settings_render(
         })
         .collect();
 
+    // Per-language bio tabs: default language first, then active languages.
+    let mut bio_show_langs: Vec<String> = vec![default_lang.to_string()];
+    for code in CONTENT_LANGS {
+        if code != default_lang && active_set.contains(code) {
+            bio_show_langs.push(code.to_string());
+        }
+    }
+    let bio_rows: Vec<(String, Option<String>)> =
+        sqlx::query_as("SELECT lang, bio FROM user_translations WHERE user_id = ?")
+            .bind(&user.id)
+            .fetch_all(&state.pool)
+            .await
+            .unwrap_or_default();
+    let mut bio_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    bio_map.insert(
+        default_lang.to_string(),
+        user.bio.clone().unwrap_or_default(),
+    );
+    for (lang, bio) in &bio_rows {
+        bio_map.insert(lang.clone(), bio.clone().unwrap_or_default());
+    }
+    let labels: std::collections::HashMap<&str, &str> =
+        crate::i18n::supported_with_labels().collect();
+    let bio_languages: Vec<minijinja::Value> = bio_show_langs
+        .iter()
+        .map(|code| {
+            context! {
+                code => code,
+                label => labels.get(code.as_str()).copied().unwrap_or(code.as_str()),
+                is_default => *code == default_lang,
+            }
+        })
+        .collect();
+    let form_bios: std::collections::HashMap<String, String> = bio_show_langs
+        .iter()
+        .map(|c| (c.clone(), bio_map.get(c).cloned().unwrap_or_default()))
+        .collect();
+
     Html(
         tmpl.render(context! {
             sidebar => sidebar,
@@ -3056,6 +3102,8 @@ fn settings_render(
             form_initials => compute_initials(&user.name),
             form_title => user.title.as_deref().unwrap_or(""),
             form_bio => user.bio.as_deref().unwrap_or(""),
+            bio_languages => bio_languages,
+            form_bios => form_bios,
             form_booking_email => user.booking_email.as_deref().unwrap_or(""),
             form_timezone => user.timezone,
             tz_options => tz_options,
@@ -3074,6 +3122,53 @@ fn settings_render(
         })
         .unwrap_or_else(|e| internal_error_body("template render", &e)),
     )
+}
+
+fn form_bio_for<'a>(form: &'a SettingsForm, lang: &str) -> Option<&'a str> {
+    let v = match lang {
+        "en" => form.bio_en.as_deref(),
+        "pt" => form.bio_pt.as_deref(),
+        "es" => form.bio_es.as_deref(),
+        "fr" => form.bio_fr.as_deref(),
+        "de" => form.bio_de.as_deref(),
+        "it" => form.bio_it.as_deref(),
+        _ => None,
+    };
+    v.map(str::trim).filter(|s| !s.is_empty())
+}
+
+/// Upsert per-language bio rows (the default language lives in users.bio).
+async fn save_user_bio_translations(
+    pool: &SqlitePool,
+    user_id: &str,
+    default_lang: &str,
+    active_langs: &[String],
+    form: &SettingsForm,
+) {
+    for lang in CONTENT_LANGS {
+        if lang == default_lang {
+            continue;
+        }
+        let keep = active_langs.iter().any(|l| l == lang);
+        let bio = if keep { form_bio_for(form, lang) } else { None };
+        if let Some(bio) = bio {
+            let _ = sqlx::query(
+                "INSERT INTO user_translations (user_id, lang, bio) VALUES (?, ?, ?)
+                 ON CONFLICT(user_id, lang) DO UPDATE SET bio = excluded.bio",
+            )
+            .bind(user_id)
+            .bind(lang)
+            .bind(bio)
+            .execute(pool)
+            .await;
+        } else {
+            let _ = sqlx::query("DELETE FROM user_translations WHERE user_id = ? AND lang = ?")
+                .bind(user_id)
+                .bind(lang)
+                .execute(pool)
+                .await;
+        }
+    }
 }
 
 async fn settings_save(
@@ -3101,6 +3196,7 @@ async fn settings_save(
             &imp_name,
             &form.avail_schedule,
         )
+        .await
         .into_response();
     }
 
@@ -3130,6 +3226,7 @@ async fn settings_save(
                 &imp_name,
                 &form.avail_schedule,
             )
+            .await
             .into_response();
         }
         // Check uniqueness (only if different from current)
@@ -3152,6 +3249,7 @@ async fn settings_save(
                     &imp_name,
                     &form.avail_schedule,
                 )
+                .await
                 .into_response();
             }
             let _ = sqlx::query("UPDATE users SET username = ? WHERE id = ?")
@@ -3201,6 +3299,7 @@ async fn settings_save(
                 &imp_name,
                 &form.avail_schedule,
             )
+            .await
             .into_response();
         }
     }
@@ -3256,6 +3355,17 @@ async fn settings_save(
 
     match result {
         Ok(_) => {
+            // Persist per-language bio translations (base bio is in users.bio).
+            let active_vec: Vec<String> =
+                active_languages.split(',').map(|s| s.to_string()).collect();
+            save_user_bio_translations(
+                &state.pool,
+                &user.id,
+                &default_language,
+                &active_vec,
+                &form,
+            )
+            .await;
             // Also update the linked account name
             let _ = sqlx::query("UPDATE accounts SET name = ? WHERE user_id = ?")
                 .bind(&name)
@@ -3281,6 +3391,7 @@ async fn settings_save(
                 &imp_name,
                 &form.avail_schedule,
             )
+            .await
             .into_response()
         }
         Err(_) => settings_render(
@@ -3293,6 +3404,7 @@ async fn settings_save(
             &imp_name,
             &form.avail_schedule,
         )
+        .await
         .into_response(),
     }
 }
@@ -10154,12 +10266,22 @@ async fn user_profile(
         })
         .collect();
 
+    let resolved_bio: Option<String> = sqlx::query_scalar(
+        "SELECT COALESCE(NULLIF(TRIM((SELECT bio FROM user_translations WHERE user_id = ? AND lang = ?)), ''), bio) FROM users WHERE id = ?",
+    )
+    .bind(&user_id)
+    .bind(lang)
+    .bind(&user_id)
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or_else(|_| user_bio.clone());
+
     Html(
         tmpl.render(context! {
             host_name => &user_name,
             host_initials => compute_initials(&user_name),
             host_title => user_title,
-            host_bio => user_bio.as_deref().map(crate::utils::render_inline_markdown),
+            host_bio => resolved_bio.as_deref().map(crate::utils::render_inline_markdown),
             host_user_id => user_id,
             host_has_avatar => avatar_path.is_some(),
             username => username,

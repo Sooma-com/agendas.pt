@@ -82,10 +82,18 @@
       <span class="hint" style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">Shown on your public profile and in the sidebar.</span>
     </div>
 
-    <div class="form-group">
-      <label for="bio">Bio</label>
+    <div class="form-group i18n-field">
+      <div class="i18n-head">
+        <label for="bio">Bio</label>
+        <div class="i18n-tabs" data-i18n-tabs>
+          {% for l in bio_languages %}<button type="button" data-i18n-tab="{{ l.code }}" {% if l.is_default %}class="active"{% endif %}>{{ l.code | upper }}</button>{% endfor %}
+        </div>
+      </div>
+      {% for l in bio_languages %}
+      {% set bid = "bio" if l.is_default else "bio_" ~ l.code %}
+      <div data-i18n-pane="{{ l.code }}" {% if not l.is_default %}hidden{% endif %}>
       <div style="border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;">
-        <div class="md-toolbar" data-target="bio" style="display: flex; gap: 0.25rem; padding: 0.375rem 0.5rem; background: var(--surface-hover); border-bottom: 1px solid var(--border);">
+        <div class="md-toolbar" data-target="{{ bid }}" style="display: flex; gap: 0.25rem; padding: 0.375rem 0.5rem; background: var(--surface-hover); border-bottom: 1px solid var(--border);">
           <button type="button" data-action="bold" title="Bold (Ctrl+B)" style="padding: 0.25rem 0.5rem; background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; font-weight: 700; font-size: 0.85rem; color: var(--text); font-family: inherit; line-height: 1;">B</button>
           <button type="button" data-action="italic" title="Italic (Ctrl+I)" style="padding: 0.25rem 0.5rem; background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; font-style: italic; font-size: 0.85rem; color: var(--text); font-family: inherit; line-height: 1;">I</button>
           <button type="button" data-action="strikethrough" title="Strikethrough" style="padding: 0.25rem 0.5rem; background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; text-decoration: line-through; font-size: 0.85rem; color: var(--text); font-family: inherit; line-height: 1;">S</button>
@@ -95,10 +103,12 @@
           <div style="flex: 1;"></div>
           <button type="button" class="md-preview-toggle" title="Toggle preview" style="padding: 0.25rem 0.5rem; background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; font-size: 0.75rem; color: var(--text-muted); font-family: inherit; line-height: 1;">Preview</button>
         </div>
-        <textarea id="bio" name="bio" rows="3" placeholder="Tell people a bit about yourself..." style="border: none; border-radius: 0; width: 100%; resize: vertical; padding: 0.5rem 0.75rem; font-family: inherit; font-size: 0.9rem; background: var(--surface); color: var(--text); box-sizing: border-box;">{{ form_bio }}</textarea>
-        <div id="bio-preview" style="display: none; padding: 0.5rem 0.75rem; min-height: 4rem; font-size: 0.9rem; color: var(--text); background: var(--surface);"></div>
+        <textarea id="{{ bid }}" name="{% if l.is_default %}bio{% else %}bio_{{ l.code }}{% endif %}" rows="3" placeholder="Tell people a bit about yourself..." style="border: none; border-radius: 0; width: 100%; resize: vertical; padding: 0.5rem 0.75rem; font-family: inherit; font-size: 0.9rem; background: var(--surface); color: var(--text); box-sizing: border-box;">{{ form_bios[l.code] }}</textarea>
+        <div id="{{ bid }}-preview" style="display: none; padding: 0.5rem 0.75rem; min-height: 4rem; font-size: 0.9rem; color: var(--text); background: var(--surface);"></div>
       </div>
-      <span class="hint" style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">Shown on your public booking page. Supports **bold**, *italic*, ~~strikethrough~~, `code`, and [links](url).</span>
+      </div>
+      {% endfor %}
+      <span class="hint" style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">Shown on your public booking page. Supports **bold**, *italic*, ~~strikethrough~~, `code`, and [links](url). Other languages fall back to the default when blank.</span>
     </div>
 
     <div class="form-group">
@@ -380,6 +390,32 @@ if (window.location.hash === '#availability') {
   }
   sel.addEventListener('change', sync);
   sync();
+})();
+</script>
+<style>
+  .i18n-field .i18n-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem; }
+  .i18n-field .i18n-head label { margin-bottom: 0; }
+  .i18n-tabs { display: inline-flex; gap: 0.85rem; flex-shrink: 0; align-self: flex-end; }
+  .i18n-tabs button { border: none; background: none; cursor: pointer; font-family: inherit; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; padding: 0.1rem 0.1rem 0.3rem; color: var(--text-muted); line-height: 1.3; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s ease, border-color 0.15s ease; }
+  .i18n-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .i18n-tabs button:not(.active):hover { color: var(--text); }
+</style>
+<script>
+(function () {
+  document.querySelectorAll('[data-i18n-tabs]').forEach(function (tabs) {
+    var field = tabs.closest('.i18n-field');
+    if (!field) return;
+    var btns = tabs.querySelectorAll('button[data-i18n-tab]');
+    btns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var lang = btn.getAttribute('data-i18n-tab');
+        btns.forEach(function (b) { b.classList.toggle('active', b === btn); });
+        field.querySelectorAll('[data-i18n-pane]').forEach(function (pane) {
+          pane.hidden = pane.getAttribute('data-i18n-pane') !== lang;
+        });
+      });
+    });
+  });
 })();
 </script>
 {% endblock %}
