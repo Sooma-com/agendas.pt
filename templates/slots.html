@@ -708,7 +708,7 @@
         <div style="display: flex; align-items: center; margin-top: 0.25rem;">
           {% for m in team_members %}{% if loop.index0 < 6 %}
           <span title="{{ m.name }}" style="width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 600; flex-shrink: 0; overflow: hidden; border: 2px solid var(--surface);{% if loop.index0 > 0 %} margin-left: -6px;{% endif %}">
-            {% if m.has_avatar %}<img src="/avatar/{{ m.id }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ m.initials }}{% endif %}
+            {% if m.has_avatar %}<img src="/avatar/{{ m.id }}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent='{{ m.initials }}'">{% else %}{{ m.initials }}{% endif %}
           </span>
           {% endif %}{% endfor %}
           {% if team_members | length > 6 %}
@@ -723,7 +723,7 @@
       <div style="display: flex; align-items: center;">
         {% for m in dg_members %}{% if loop.index0 < 4 %}
         <span title="{{ m.name }}" style="width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; flex-shrink: 0; overflow: hidden; border: 2px solid var(--surface);{% if loop.index0 > 0 %} margin-left: -10px;{% endif %}">
-          {% if m.has_avatar %}<img src="/avatar/{{ m.id }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ m.initials }}{% endif %}
+          {% if m.has_avatar %}<img src="/avatar/{{ m.id }}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent='{{ m.initials }}'">{% else %}{{ m.initials }}{% endif %}
         </span>
         {% endif %}{% endfor %}
         {% if dg_members | length > 4 %}

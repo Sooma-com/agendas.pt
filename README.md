@@ -23,7 +23,7 @@ Highlights:
 - **Teams** — round-robin (least-busy) or collective scheduling.
 - **Timezone aware** — guest auto-detection; events converted between calendar and host timezones.
 - **Email** — HTML notifications with `.ics`, approve/decline and self-cancel/reschedule from the email.
-- **Multi-language UI** — including European Portuguese (pt-PT).
+- **Bilingual (EN + pt-PT)** — booking and profile pages follow the visitor's browser language; event titles and descriptions can be translated per language so one event renders correctly for every guest.
 - **Security** — Argon2 passwords, OIDC/SSO (PKCE), AES-256-GCM encrypted credentials at rest.
 - **Single binary** — SQLite (WAL), structured logging, full CLI for headless operation.
 

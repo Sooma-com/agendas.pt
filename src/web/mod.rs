@@ -9399,11 +9399,14 @@ async fn handle_group_booking(
     }
 
     let et: Option<(String, String, String, i32, i32, i32, i32, i32, String, Option<String>, String, Option<i32>, String, i32, String, Option<String>)> = sqlx::query_as(
-        "SELECT et.id, et.slug, et.title, et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.requires_confirmation, et.location_type, et.location_value, et.team_id, et.reminder_minutes, et.visibility, et.max_additional_guests, t.visibility, t.invite_token
+        "SELECT et.id, et.slug,
+                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.requires_confirmation, et.location_type, et.location_value, et.team_id, et.reminder_minutes, et.visibility, et.max_additional_guests, t.visibility, t.invite_token
          FROM event_types et
          JOIN teams t ON t.id = et.team_id
          WHERE t.slug = ? AND et.slug = ? AND et.enabled = 1",
     )
+    .bind(lang)
     .bind(&team_slug)
     .bind(&slug)
     .fetch_optional(&state.pool)
@@ -10235,12 +10238,15 @@ async fn handle_dynamic_group_booking(
 
     let owner_username = &usernames[0];
     let et: Option<(String, String, String, i32, i32, i32, i32, i32, String, Option<String>, String, Option<i32>, String, i32)> = sqlx::query_as(
-        "SELECT et.id, et.slug, et.title, et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.requires_confirmation, et.location_type, et.location_value, u.id, et.reminder_minutes, et.visibility, et.max_additional_guests
+        "SELECT et.id, et.slug,
+                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.requires_confirmation, et.location_type, et.location_value, u.id, et.reminder_minutes, et.visibility, et.max_additional_guests
          FROM event_types et
          JOIN accounts a ON a.id = et.account_id
          JOIN users u ON u.id = a.user_id
          WHERE u.username = ? AND et.slug = ? AND et.enabled = 1 AND u.enabled = 1",
     )
+    .bind(lang)
     .bind(owner_username)
     .bind(slug)
     .fetch_optional(&state.pool)
@@ -11013,13 +11019,18 @@ async fn handle_booking_for_user(
         return render_booking_action_error(&state, &headers, "Invalid booking details", &e);
     }
 
+    // Confirmation page + guest emails follow the booker's browser language.
+    let lang = crate::i18n::detect_from_headers(&headers);
     let et: Option<(String, String, String, i32, i32, i32, i32, i32, String, Option<String>, String, Option<i32>, String, i32, Option<String>)> = sqlx::query_as(
-        "SELECT et.id, et.slug, et.title, et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.requires_confirmation, et.location_type, et.location_value, u.id, et.reminder_minutes, et.visibility, et.max_additional_guests, u.language
+        "SELECT et.id, et.slug,
+                CASE WHEN ? = 'pt' THEN et.title ELSE COALESCE(NULLIF(TRIM(et.title_en), ''), et.title) END,
+                et.duration_min, et.buffer_before, et.buffer_after, et.min_notice_min, et.requires_confirmation, et.location_type, et.location_value, u.id, et.reminder_minutes, et.visibility, et.max_additional_guests, u.language
          FROM event_types et
          JOIN accounts a ON a.id = et.account_id
          JOIN users u ON u.id = a.user_id
          WHERE u.username = ? AND et.slug = ? AND et.enabled = 1 AND u.enabled = 1",
     )
+    .bind(lang)
     .bind(&username)
     .bind(&slug)
     .fetch_optional(&state.pool)
@@ -11041,13 +11052,12 @@ async fn handle_booking_for_user(
         reminder_min,
         visibility,
         max_additional_guests,
-        user_lang,
+        _user_lang,
     ) = match et {
         Some(e) => e,
         None => return Html("Event type not found.".to_string()).into_response(),
     };
 
-    let lang = crate::i18n::resolve(user_lang.as_deref(), &headers);
     let needs_approval = requires_confirmation != 0;
 
     // Parse additional guests
