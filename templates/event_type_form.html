@@ -1653,21 +1653,39 @@
   })();
 </script>
 <script>
-// PT|EN language tabs: toggle which translation pane is visible within a field.
+// PT|EN language tabs: switching one field switches every language field on
+// the page, so the whole form is edited as a single "language mode".
 (function () {
-  document.querySelectorAll('[data-i18n-tabs]').forEach(function (tabs) {
-    var field = tabs.closest('.i18n-field');
-    if (!field) return;
-    var btns = tabs.querySelectorAll('button[data-i18n-tab]');
-    btns.forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var lang = btn.getAttribute('data-i18n-tab');
-        btns.forEach(function (b) { b.classList.toggle('active', b === btn); });
-        field.querySelectorAll('[data-i18n-pane]').forEach(function (pane) {
-          pane.hidden = pane.getAttribute('data-i18n-pane') !== lang;
-        });
+  var fields = Array.prototype.slice.call(document.querySelectorAll('.i18n-field'));
+  if (!fields.length) return;
+
+  function setLang(lang) {
+    fields.forEach(function (field) {
+      field.querySelectorAll('button[data-i18n-tab]').forEach(function (b) {
+        b.classList.toggle('active', b.getAttribute('data-i18n-tab') === lang);
+      });
+      field.querySelectorAll('[data-i18n-pane]').forEach(function (pane) {
+        pane.hidden = pane.getAttribute('data-i18n-pane') !== lang;
       });
     });
+  }
+
+  document.querySelectorAll('button[data-i18n-tab]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      setLang(btn.getAttribute('data-i18n-tab'));
+    });
+  });
+
+  // The Portuguese title is required. A required control inside a hidden pane
+  // isn't focusable, so if the form is submitted in English mode with the PT
+  // title empty, flip back to PT first (in capture phase, before the browser
+  // runs constraint validation) so the validation message shows on a visible
+  // field instead of silently failing.
+  var ptTitle = document.getElementById('title');
+  document.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (sb) {
+    sb.addEventListener('click', function () {
+      if (ptTitle && !ptTitle.value.trim()) setLang('pt');
+    }, true);
   });
 })();
 </script>
