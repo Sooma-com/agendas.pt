@@ -244,6 +244,10 @@ pub async fn migrate(pool: &SqlitePool) -> Result<()> {
             "057_runtime_settings",
             include_str!("../migrations/057_runtime_settings.sql"),
         ),
+        (
+            "058_follow_default_availability",
+            include_str!("../migrations/058_follow_default_availability.sql"),
+        ),
     ];
 
     let mut applied_count = 0u32;

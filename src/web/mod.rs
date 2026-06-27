@@ -4379,6 +4379,8 @@ struct EventTypeForm {
     frequency_limits: String,
     // Show only the earliest available slot per day
     first_slot_only: Option<String>, // checkbox: "on" or absent
+    // When set, availability follows the user's live default schedule instead of per-event rules.
+    follow_default_availability: Option<String>, // checkbox: "on" or absent
     // Watcher teams (comma-separated team IDs)
     watcher_team_ids: Option<String>,
     // Timezone in which the availability rules are interpreted. IANA name
@@ -4502,6 +4504,7 @@ async fn new_event_type_form(
             form_buffer_after => 0,
             form_min_notice => 60,
             form_requires_confirmation => matches!(preset, "private"),
+            form_follow_default_availability => true,
             form_visibility => match preset { "private" => "private", "internal" => "internal", _ => "public" },
             form_location_type => "link",
             form_location_value => "",
@@ -4674,6 +4677,7 @@ async fn create_event_type(
     };
 
     let first_slot_only = form.first_slot_only.as_deref() == Some("on");
+    let follow_default = form.follow_default_availability.as_deref() == Some("on");
     let timezone = normalize_event_type_tz(form.timezone.as_deref(), &user.timezone);
     let cancel_notice_min =
         parse_notice_to_minutes(&form.cancel_notice_value, &form.cancel_notice_unit);
@@ -4688,8 +4692,8 @@ async fn create_event_type(
         .map(str::to_string);
 
     let _ = sqlx::query(
-        "INSERT INTO event_types (id, account_id, slug, title, description, duration_min, slot_interval_min, buffer_before, buffer_after, min_notice_min, requires_confirmation, location_type, location_value, team_id, created_by_user_id, reminder_minutes, visibility, max_additional_guests, default_calendar_view, first_slot_only, timezone, cancel_notice_min, reschedule_notice_min, meeting_pattern_override)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO event_types (id, account_id, slug, title, description, duration_min, slot_interval_min, buffer_before, buffer_after, min_notice_min, requires_confirmation, location_type, location_value, team_id, created_by_user_id, reminder_minutes, visibility, max_additional_guests, default_calendar_view, first_slot_only, timezone, cancel_notice_min, reschedule_notice_min, meeting_pattern_override, follow_default_availability)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&et_id)
     .bind(&account_id)
@@ -4715,6 +4719,7 @@ async fn create_event_type(
     .bind(cancel_notice_min)
     .bind(reschedule_notice_min)
     .bind(&meeting_pattern_override)
+    .bind(follow_default as i32)
     .execute(&state.pool)
     .await;
 
@@ -4725,14 +4730,18 @@ async fn create_event_type(
     // Mon-Fri 09:00-17:00.
     ensure_user_avail_seeded(&state.pool, &auth_user.user.id).await;
     let user_default = load_user_avail_schedule(&state.pool, &auth_user.user.id).await;
-    let schedule = parse_avail_schedule(
-        form.avail_schedule.as_deref(),
-        form.avail_days.as_deref(),
-        form.avail_windows.as_deref(),
-        form.avail_start.as_deref(),
-        form.avail_end.as_deref(),
-        Some(&user_default),
-    );
+    let schedule = if follow_default {
+        std::collections::BTreeMap::new()
+    } else {
+        parse_avail_schedule(
+            form.avail_schedule.as_deref(),
+            form.avail_days.as_deref(),
+            form.avail_windows.as_deref(),
+            form.avail_start.as_deref(),
+            form.avail_end.as_deref(),
+            Some(&user_default),
+        )
+    };
 
     for (day, windows) in &schedule {
         for (ws, we) in windows {
@@ -5081,9 +5090,18 @@ async fn edit_event_type_form(
         })
         .collect();
 
+    let follow_default: i64 = sqlx::query_scalar(
+        "SELECT follow_default_availability FROM event_types WHERE id = ?",
+    )
+    .bind(&et_id)
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or(0);
+
     Html(
         tmpl.render(context! {
             editing => true,
+            form_follow_default_availability => follow_default != 0,
             original_slug => et_slug,
             calendars => calendars_ctx,
             selected_calendar_ids => selected_calendar_ids,
@@ -5269,6 +5287,14 @@ async fn update_event_type(
     .execute(&state.pool)
     .await;
 
+    // Persist whether this event type follows the user's default schedule.
+    let follow_default = form.follow_default_availability.as_deref() == Some("on");
+    let _ = sqlx::query("UPDATE event_types SET follow_default_availability = ? WHERE id = ?")
+        .bind(follow_default as i32)
+        .bind(&et_id)
+        .execute(&state.pool)
+        .await;
+
     // Update availability rules: delete old, insert new. Pass the user's
     // profile-default schedule as a fallback so an empty submission falls back
     // to it instead of hardcoded Mon-Fri 09:00-17:00.
@@ -5279,14 +5305,18 @@ async fn update_event_type(
 
     ensure_user_avail_seeded(&state.pool, &auth_user.user.id).await;
     let user_default = load_user_avail_schedule(&state.pool, &auth_user.user.id).await;
-    let schedule = parse_avail_schedule(
-        form.avail_schedule.as_deref(),
-        form.avail_days.as_deref(),
-        form.avail_windows.as_deref(),
-        form.avail_start.as_deref(),
-        form.avail_end.as_deref(),
-        Some(&user_default),
-    );
+    let schedule = if follow_default {
+        std::collections::BTreeMap::new()
+    } else {
+        parse_avail_schedule(
+            form.avail_schedule.as_deref(),
+            form.avail_days.as_deref(),
+            form.avail_windows.as_deref(),
+            form.avail_start.as_deref(),
+            form.avail_end.as_deref(),
+            Some(&user_default),
+        )
+    };
 
     for (day, windows) in &schedule {
         for (ws, we) in windows {
@@ -6660,6 +6690,7 @@ fn render_event_type_form_error(
             form_avail_schedule => form.avail_schedule.as_deref().unwrap_or(""),
             form_default_calendar_view => form.default_calendar_view.as_deref().unwrap_or("month"),
             form_first_slot_only => form.first_slot_only.as_deref() == Some("on"),
+            form_follow_default_availability => form.follow_default_availability.as_deref() == Some("on"),
             form_frequency_limits => form.frequency_limits.as_str(),
             form_timezone => form.timezone.as_deref().unwrap_or(&auth_user.user.timezone),
             form_cancel_notice_value => parse_int_field(&form.cancel_notice_value, 0),
@@ -7762,6 +7793,7 @@ async fn create_group_event_type(
     };
 
     let first_slot_only = form.first_slot_only.as_deref() == Some("on");
+    let follow_default = form.follow_default_availability.as_deref() == Some("on");
     let timezone = normalize_event_type_tz(form.timezone.as_deref(), &user.timezone);
     let cancel_notice_min =
         parse_notice_to_minutes(&form.cancel_notice_value, &form.cancel_notice_unit);
@@ -11599,6 +11631,45 @@ enum BusySource {
 
 /// Compute available slots for an event type.
 /// Caller provides pre-fetched busy times via BusySource.
+/// Effective weekly availability rules for an event type: the owner's live
+/// default schedule when `follow_default_availability` is set, otherwise the
+/// event type's own per-event rules.
+async fn effective_avail_rules(pool: &SqlitePool, et_id: &str) -> Vec<(i32, String, String)> {
+    let follow: i64 = sqlx::query_scalar(
+        "SELECT follow_default_availability FROM event_types WHERE id = ?",
+    )
+    .bind(et_id)
+    .fetch_one(pool)
+    .await
+    .unwrap_or(0);
+    if follow != 0 {
+        let owner: Option<String> = sqlx::query_scalar(
+            "SELECT a.user_id FROM event_types e JOIN accounts a ON a.id = e.account_id WHERE e.id = ?",
+        )
+        .bind(et_id)
+        .fetch_optional(pool)
+        .await
+        .unwrap_or(None);
+        if let Some(uid) = owner {
+            return sqlx::query_as(
+                "SELECT day_of_week, start_time, end_time FROM user_availability_rules WHERE user_id = ?",
+            )
+            .bind(uid)
+            .fetch_all(pool)
+            .await
+            .unwrap_or_default();
+        }
+        return Vec::new();
+    }
+    sqlx::query_as(
+        "SELECT day_of_week, start_time, end_time FROM availability_rules WHERE event_type_id = ?",
+    )
+    .bind(et_id)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default()
+}
+
 async fn compute_slots(
     pool: &SqlitePool,
     et_id: &str,
@@ -11612,13 +11683,7 @@ async fn compute_slots(
     guest_tz: Tz,
     busy: BusySource,
 ) -> Vec<SlotDay> {
-    let rules: Vec<(i32, String, String)> = sqlx::query_as(
-        "SELECT day_of_week, start_time, end_time FROM availability_rules WHERE event_type_id = ?",
-    )
-    .bind(et_id)
-    .fetch_all(pool)
-    .await
-    .unwrap_or_default();
+    let rules: Vec<(i32, String, String)> = effective_avail_rules(pool, et_id).await;
 
     // Fetch availability overrides for this event type
     let overrides: Vec<(String, Option<String>, Option<String>, i32)> = sqlx::query_as(
@@ -13438,14 +13503,14 @@ async fn troubleshoot(
             .collect()
     } else {
         let weekday = target_date.weekday().num_days_from_sunday() as i32;
-        sqlx::query_as(
-            "SELECT start_time, end_time FROM availability_rules WHERE event_type_id = ? AND day_of_week = ? ORDER BY start_time",
-        )
-        .bind(&et_id)
-        .bind(weekday)
-        .fetch_all(&state.pool)
-        .await
-        .unwrap_or_default()
+        let mut r: Vec<(String, String)> = effective_avail_rules(&state.pool, &et_id)
+            .await
+            .into_iter()
+            .filter(|(d, _, _)| *d == weekday)
+            .map(|(_, s, e)| (s, e))
+            .collect();
+        r.sort();
+        r
     };
 
     // Busy events for this date — enriched with title + calendar name

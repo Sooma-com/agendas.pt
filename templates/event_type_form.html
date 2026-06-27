@@ -297,6 +297,13 @@
 <details class="card collapsible-section" style="margin-top: 1rem;" id="scheduling-section"{% if editing %} open{% endif %}>
   <summary class="collapsible-header"><h2>Availability</h2><span class="collapsible-hint" id="scheduling-hint"></span><span class="collapsible-chevron"></span></summary>
   <div class="collapsible-body">
+    {% if not is_group %}
+    <label style="display:flex; align-items:flex-start; gap:0.5rem; margin-bottom:1rem; cursor:pointer; font-size:0.9rem; line-height:1.4;">
+      <input type="checkbox" name="follow_default_availability" id="follow_default_availability" value="on" style="margin-top:0.2rem;" {% if form_follow_default_availability %}checked{% endif %}>
+      <span>Use my <a href="/dashboard/settings#availability" style="color: var(--accent);">default availability</a> <span class="hint">(recommended)</span> — changes to your default apply to this event type automatically.</span>
+    </label>
+    {% endif %}
+    <div id="custom-availability">
     <div class="form-group" style="margin-bottom: 1rem;">
       <label for="event_type_timezone">Timezone</label>
       <select id="event_type_timezone" name="timezone" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 0.9rem;">
@@ -313,8 +320,19 @@
     </div>
     <input type="hidden" name="avail_schedule" id="avail_schedule" value="{{ form_avail_schedule | default(value='') }}">
     <span class="hint" style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 0.5rem;">Pre-filled from your <a href="/dashboard/settings#availability" style="color: var(--accent);">default availability</a>. You can override it here for this event type.</span>
+    </div>
   </div>
 </details>
+<script>
+(function () {
+  var cb = document.getElementById('follow_default_availability');
+  var box = document.getElementById('custom-availability');
+  if (!cb || !box) return;
+  function sync() { box.style.display = cb.checked ? 'none' : ''; }
+  cb.addEventListener('change', sync);
+  sync();
+})();
+</script>
 
 <!-- Collapsible: Buffers & notice -->
 <details class="card collapsible-section" style="margin-top: 1rem;"{% if editing and ((form_buffer_before is defined and form_buffer_before and form_buffer_before != "0") or (form_buffer_after is defined and form_buffer_after and form_buffer_after != "0") or (form_min_notice is defined and form_min_notice and form_min_notice != "0") or (form_cancel_notice_value is defined and form_cancel_notice_value and form_cancel_notice_value > 0) or (form_reschedule_notice_value is defined and form_reschedule_notice_value and form_reschedule_notice_value > 0)) %} open{% endif %}>
