@@ -252,5 +252,5 @@ booking-blocked-body = L'hôte requiert un préavis d'au moins { $minutes } minu
 
 # Team profile: "wrong topic?" cross-team switch hint
 team-switch-prefix = Ce n'est pas
-team-switch-mid = ? Réservez avec l'équipe
+team-switch-mid =  ? Réservez avec l'équipe
 team-switch-or = ou
