@@ -255,3 +255,6 @@ booking-blocked-body = L'organizzatore richiede un preavviso di almeno { $minute
 team-switch-prefix = L'argomento non è
 team-switch-mid = ? Prenoti con il team
 team-switch-or = o
+
+# Footer attribution shown on non-Portuguese pages ("… Sooma Labs Beta · Source")
+footer-powered-by = Prenotazioni con tecnologia di

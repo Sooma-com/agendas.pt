@@ -254,3 +254,6 @@ booking-blocked-body = L'hôte requiert un préavis d'au moins { $minutes } minu
 team-switch-prefix = Ce n'est pas
 team-switch-mid =  ? Réservez avec l'équipe
 team-switch-or = ou
+
+# Footer attribution shown on non-Portuguese pages ("… Sooma Labs Beta · Source")
+footer-powered-by = Réservations propulsées par

@@ -255,3 +255,6 @@ booking-blocked-body = Der Gastgeber verlangt eine Vorlaufzeit von mindestens { 
 team-switch-prefix = Geht es nicht um
 team-switch-mid = ? Buchen Sie beim Team
 team-switch-or = oder
+
+# Footer attribution shown on non-Portuguese pages ("… Sooma Labs Beta · Source")
+footer-powered-by = Buchung bereitgestellt von

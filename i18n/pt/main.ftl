@@ -266,3 +266,6 @@ booking-blocked-body = O anfitrião exige um aviso de pelo menos { $minutes } mi
 team-switch-prefix = O assunto não é
 team-switch-mid = ? Agende com a equipa
 team-switch-or = ou
+
+# Footer attribution shown on non-Portuguese pages ("… Sooma Labs Beta · Source")
+footer-powered-by = Reservas com tecnologia de

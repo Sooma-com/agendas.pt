@@ -254,3 +254,6 @@ booking-blocked-body = El anfitrión requiere una antelación mínima de { $minu
 team-switch-prefix = ¿El asunto no es
 team-switch-mid = ? Agende con el equipo
 team-switch-or = o
+
+# Footer attribution shown on non-Portuguese pages ("… Sooma Labs Beta · Source")
+footer-powered-by = Reservas con la tecnología de
