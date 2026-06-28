@@ -1178,6 +1178,33 @@ async fn csp_middleware(
                 .insert(axum::http::header::CONTENT_SECURITY_POLICY, val);
         }
     }
+
+    // HTML pages are personalized by the `calrs_lang` cookie (and others), so
+    // they must not be served from a shared/browser cache keyed only on URL —
+    // otherwise switching language reloads a stale copy in the visitor's
+    // language. Mark them as cookie-varying and force revalidation. Static
+    // assets (CSS, fonts, avatars, JS) keep whatever caching they already set.
+    let is_html = response
+        .headers()
+        .get(axum::http::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(|ct| ct.starts_with("text/html"))
+        .unwrap_or(false);
+    if is_html
+        && !response
+            .headers()
+            .contains_key(axum::http::header::CACHE_CONTROL)
+    {
+        response.headers_mut().insert(
+            axum::http::header::CACHE_CONTROL,
+            axum::http::HeaderValue::from_static("private, no-cache, must-revalidate"),
+        );
+        response.headers_mut().insert(
+            axum::http::header::VARY,
+            axum::http::HeaderValue::from_static("Cookie"),
+        );
+    }
+
     response
 }
 
