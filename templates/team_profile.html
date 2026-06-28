@@ -130,6 +130,15 @@
     renderCollapsed(best);
   }
   collapse();
+  // Re-clamp once web fonts finish loading: the first pass can measure with
+  // fallback-font metrics and overflow onto a 4th line. Skip if the visitor
+  // has already expanded it.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () {
+      var btn = bio.querySelector('.bio-toggle');
+      if (!btn || btn.textContent === more) collapse();
+    });
+  }
   var t;
   window.addEventListener('resize', function () {
     clearTimeout(t);
