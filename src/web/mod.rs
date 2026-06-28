@@ -3211,9 +3211,38 @@ fn form_team_desc_for<'a>(form: &'a GroupSettingsForm, lang: &str) -> Option<&'a
     v.map(str::trim).filter(|s| !s.is_empty())
 }
 
-/// Upsert per-language team description rows (the default language lives in
-/// teams.description). Mirrors `save_user_bio_translations`.
-async fn save_team_description_translations(
+fn form_team_name_for<'a>(form: &'a GroupSettingsForm, lang: &str) -> Option<&'a str> {
+    let v = match lang {
+        "en" => form.name_en.as_deref(),
+        "pt" => form.name_pt.as_deref(),
+        "es" => form.name_es.as_deref(),
+        "fr" => form.name_fr.as_deref(),
+        "de" => form.name_de.as_deref(),
+        "it" => form.name_it.as_deref(),
+        _ => None,
+    };
+    v.map(str::trim).filter(|s| !s.is_empty())
+}
+
+/// Resolve a team's display name for the visitor language, falling back to the
+/// base `teams.name` when no translation is set.
+async fn team_name_for(pool: &SqlitePool, team_id: &str, base: &str, lang: &str) -> String {
+    let row: Option<(Option<String>,)> =
+        sqlx::query_as("SELECT name FROM team_translations WHERE team_id = ? AND lang = ?")
+            .bind(team_id)
+            .bind(lang)
+            .fetch_optional(pool)
+            .await
+            .unwrap_or(None);
+    row.and_then(|(n,)| n)
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| base.to_string())
+}
+
+/// Upsert per-language team name + description rows (the default language lives
+/// in teams.name / teams.description). Mirrors `save_user_bio_translations`.
+async fn save_team_translations(
     pool: &SqlitePool,
     team_id: &str,
     default_lang: &str,
@@ -3225,23 +3254,25 @@ async fn save_team_description_translations(
             continue;
         }
         let keep = active_langs.iter().any(|l| l == lang);
+        let name = if keep { form_team_name_for(form, lang) } else { None };
         let desc = if keep { form_team_desc_for(form, lang) } else { None };
-        if let Some(desc) = desc {
-            let _ = sqlx::query(
-                "INSERT INTO team_translations (team_id, lang, description) VALUES (?, ?, ?)
-                 ON CONFLICT(team_id, lang) DO UPDATE SET description = excluded.description",
-            )
-            .bind(team_id)
-            .bind(lang)
-            .bind(desc)
-            .execute(pool)
-            .await;
-        } else {
+        if name.is_none() && desc.is_none() {
             let _ = sqlx::query("DELETE FROM team_translations WHERE team_id = ? AND lang = ?")
                 .bind(team_id)
                 .bind(lang)
                 .execute(pool)
                 .await;
+        } else {
+            let _ = sqlx::query(
+                "INSERT INTO team_translations (team_id, lang, name, description) VALUES (?, ?, ?, ?)
+                 ON CONFLICT(team_id, lang) DO UPDATE SET name = excluded.name, description = excluded.description",
+            )
+            .bind(team_id)
+            .bind(lang)
+            .bind(name)
+            .bind(desc)
+            .execute(pool)
+            .await;
         }
     }
 }
@@ -3756,6 +3787,13 @@ async fn find_manageable_event_type_by_slug(
 struct GroupSettingsForm {
     _csrf: Option<String>,
     name: Option<String>,
+    // Per-language name variants (default language uses `name`).
+    name_en: Option<String>,
+    name_pt: Option<String>,
+    name_es: Option<String>,
+    name_fr: Option<String>,
+    name_de: Option<String>,
+    name_it: Option<String>,
     slug: Option<String>,
     description: Option<String>,
     // Per-language description variants (default language uses `description`).
@@ -3886,20 +3924,28 @@ async fn team_settings_page(
     // user's active languages (the team's base description in teams.description
     // is authored in the user's default content language).
     let (desc_default_lang, desc_show_langs) = user_content_langs(user);
-    let desc_rows: Vec<(String, Option<String>)> =
-        sqlx::query_as("SELECT lang, description FROM team_translations WHERE team_id = ?")
+    let tr_rows: Vec<(String, Option<String>, Option<String>)> =
+        sqlx::query_as("SELECT lang, name, description FROM team_translations WHERE team_id = ?")
             .bind(&tid)
             .fetch_all(&state.pool)
             .await
             .unwrap_or_default();
     let mut desc_map: std::collections::HashMap<String, String> =
         std::collections::HashMap::new();
+    let mut name_map: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
     desc_map.insert(
         desc_default_lang.clone(),
         description.clone().unwrap_or_default(),
     );
-    for (lang, d) in &desc_rows {
-        desc_map.insert(lang.clone(), d.clone().unwrap_or_default());
+    name_map.insert(desc_default_lang.clone(), team_name.clone());
+    for (lang, n, d) in &tr_rows {
+        if let Some(d) = d {
+            desc_map.insert(lang.clone(), d.clone());
+        }
+        if let Some(n) = n {
+            name_map.insert(lang.clone(), n.clone());
+        }
     }
     let desc_labels: std::collections::HashMap<&str, &str> =
         crate::i18n::supported_with_labels().collect();
@@ -3917,6 +3963,10 @@ async fn team_settings_page(
         .iter()
         .map(|c| (c.clone(), desc_map.get(c).cloned().unwrap_or_default()))
         .collect();
+    let form_names: std::collections::HashMap<String, String> = desc_show_langs
+        .iter()
+        .map(|c| (c.clone(), name_map.get(c).cloned().unwrap_or_default()))
+        .collect();
 
     let tmpl = match state.templates.get_template("team_settings.html") {
         Ok(t) => t,
@@ -3932,6 +3982,7 @@ async fn team_settings_page(
             team_description => description.unwrap_or_default(),
             desc_languages => desc_languages,
             form_descs => form_descs,
+            form_names => form_names,
             team_has_avatar => avatar_path.is_some(),
             team_initials => compute_initials(&team_name),
             visibility => visibility,
@@ -4019,7 +4070,7 @@ async fn team_settings_save(
     // column above). The team's default/active languages follow the editing
     // user's content-language configuration.
     let (desc_default_lang, desc_active_langs) = user_content_langs(user);
-    save_team_description_translations(
+    save_team_translations(
         &state.pool,
         &team_id,
         &desc_default_lang,
@@ -9419,8 +9470,11 @@ async fn team_profile_page(
 
     // Other public teams, for the "wrong topic? switch team" cross-link.
     let other_teams: Vec<(String, String)> = sqlx::query_as(
-        "SELECT name, slug FROM teams WHERE visibility = 'public' AND id != ? ORDER BY name",
+        "SELECT COALESCE(NULLIF(TRIM((SELECT tt.name FROM team_translations tt \
+             WHERE tt.team_id = t.id AND tt.lang = ?)), ''), t.name), t.slug \
+         FROM teams t WHERE t.visibility = 'public' AND t.id != ? ORDER BY 1",
     )
+    .bind(content_lang)
     .bind(&team_id)
     .fetch_all(&state.pool)
     .await
@@ -9471,6 +9525,8 @@ async fn team_profile_page(
     .await
     .ok()
     .flatten();
+    // Localize the team name for the visitor (falls back to teams.name).
+    let team_name = team_name_for(&state.pool, &team_id, &team_name, content_lang).await;
     Html(
         tmpl.render(context! {
             lang => lang,
@@ -9553,6 +9609,9 @@ async fn show_group_slots(
         Some(tid) => tid,
         None => return Html("Event type not found.".to_string()).into_response(),
     };
+
+    // Localize the team display name for the visitor (falls back to teams.name).
+    let team_name = team_name_for(&state.pool, &team_id, &team_name, lang).await;
 
     // Global admins can view any team event type (matches their management
     // surface). Booking is still invite-gated for private/internal events;
@@ -9865,6 +9924,9 @@ async fn show_group_book_form(
         Some(e) => e,
         None => return Html("Event type not found.".to_string()).into_response(),
     };
+
+    // Localize the team display name for the visitor (falls back to teams.name).
+    let team_name = team_name_for(&state.pool, &team_id, &team_name, lang).await;
 
     // Logged-in team members (and global admins) substitute for the team
     // invite token on public events of private teams. Private/internal events

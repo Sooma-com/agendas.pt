@@ -102,9 +102,20 @@
   <div class="card" style="margin-top: 1.25rem;">
     <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Profile</h2>
 
-    <div class="form-group">
-      <label for="name">Team name</label>
-      <input type="text" id="name" name="name" required value="{{ team_name }}" placeholder="Engineering">
+    <div class="form-group i18n-field">
+      <div class="i18n-head">
+        <label for="name">Team name</label>
+        <div class="i18n-tabs" data-i18n-tabs>
+          {% for l in desc_languages %}<button type="button" data-i18n-tab="{{ l.code }}"{% if l.is_default %} class="active" title="Default language"{% endif %}>{{ l.code | upper }}{% if l.is_default %}<span class="i18n-default-dot" aria-hidden="true">&bull;</span>{% endif %}</button>{% endfor %}
+        </div>
+      </div>
+      {% for l in desc_languages %}
+      {% set nmid = "name" if l.is_default else "name_" ~ l.code %}
+      <div data-i18n-pane="{{ l.code }}" {% if not l.is_default %}hidden{% endif %}>
+        <input type="text" id="{{ nmid }}" name="{{ nmid }}"{% if l.is_default %} required{% endif %} value="{{ form_names[l.code] }}" placeholder="Engineering">
+      </div>
+      {% endfor %}
+      <span class="hint" style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 0.25rem;">Shown on public team pages. Other languages fall back to the default when blank.</span>
     </div>
 
     <div class="form-group">
