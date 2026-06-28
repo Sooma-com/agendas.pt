@@ -272,3 +272,7 @@ team-switch-or = or
 
 # Footer attribution shown on non-Portuguese pages ("… Sooma Labs Beta · Source")
 footer-powered-by = Powered by
+
+# Expand/collapse control on clamped team/profile descriptions
+bio-more = [more]
+bio-less = [less]

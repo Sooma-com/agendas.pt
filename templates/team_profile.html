@@ -86,9 +86,8 @@
 (function () {
   var bio = document.getElementById('team-bio');
   if (!bio) return;
-  var pt = (document.documentElement.lang || '').toLowerCase().indexOf('pt') === 0;
-  var more = pt ? '[mais]' : '[more]';
-  var less = pt ? '[menos]' : '[less]';
+  var more = '{{ t("bio-more") }}';
+  var less = '{{ t("bio-less") }}';
   var fullHTML = bio.innerHTML;
   var fullText = (bio.textContent || '').replace(/\s+/g, ' ').trim();
   var MAXLINES = 3;
