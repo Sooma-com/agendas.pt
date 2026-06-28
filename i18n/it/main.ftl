@@ -230,3 +230,23 @@ email-cancel-headline-by-host = La tua prenotazione è stata annullata da { $hos
 email-cancel-headline-by-guest = La tua prenotazione è stata annullata.
 email-cancel-ics-attached-plain = Un'annullamento al calendario è in allegato.
 email-cancel-ics-attached-html = Un'annullamento al calendario è in allegato a questa e-mail.
+
+# --- completed 2026-06-28 (was falling back to English) ---
+book-email-invalid = Inserisci un indirizzo email completo, incluso il dominio (es. jane@example.com).
+team-meet-the-team = Scopri il team
+team-prefer-someone = Preferisci qualcuno in particolare? Scegli un nome.
+team-members-one = membro
+team-members-other = membri
+email-confirm-cancel-notice = Nota: la cancellazione richiede un preavviso di almeno { $minutes } minuti.
+email-confirm-reschedule-notice = Nota: la riprogrammazione richiede un preavviso di almeno { $minutes } minuti.
+event-type-form-cancel-notice-label = Preavviso minimo per annullare
+event-type-form-reschedule-notice-label = Preavviso minimo per riprogrammare
+event-type-form-notice-help = Lascia vuoto per nessuna restrizione.
+event-type-form-notice-unit-minutes = minuti
+event-type-form-notice-unit-hours = ore
+event-type-form-notice-unit-days = giorni
+confirmed-cancel-notice-info = La cancellazione richiede un preavviso di almeno { $minutes } minuti prima dell'incontro.
+confirmed-reschedule-notice-info = La riprogrammazione richiede un preavviso di almeno { $minutes } minuti prima dell'incontro.
+booking-blocked-title-cancel = Questa prenotazione non può più essere annullata online
+booking-blocked-title-reschedule = Questa prenotazione non può più essere riprogrammata online
+booking-blocked-body = L'organizzatore richiede un preavviso di almeno { $minutes } minuti. Se non puoi partecipare, scrivi direttamente a <a href="mailto:{ $host_email }">{ $host_email }</a>.

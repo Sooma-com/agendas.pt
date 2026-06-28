@@ -230,3 +230,23 @@ email-cancel-headline-by-host = Deine Buchung wurde von { $host } storniert.
 email-cancel-headline-by-guest = Deine Buchung wurde storniert.
 email-cancel-ics-attached-plain = Eine Kalenderstornierung ist beigefügt.
 email-cancel-ics-attached-html = Eine Kalenderstornierung ist dieser E-Mail beigefügt.
+
+# --- completed 2026-06-28 (was falling back to English) ---
+book-email-invalid = Bitte geben Sie eine vollständige E-Mail-Adresse inklusive Domain ein (z. B. jane@example.com).
+team-meet-the-team = Das Team kennenlernen
+team-prefer-someone = Lieber jemand Bestimmtes? Wählen Sie einen Namen.
+team-members-one = Mitglied
+team-members-other = Mitglieder
+email-confirm-cancel-notice = Hinweis: Eine Stornierung erfordert eine Vorlaufzeit von mindestens { $minutes } Minuten.
+email-confirm-reschedule-notice = Hinweis: Eine Terminverschiebung erfordert eine Vorlaufzeit von mindestens { $minutes } Minuten.
+event-type-form-cancel-notice-label = Mindestvorlaufzeit für Stornierung
+event-type-form-reschedule-notice-label = Mindestvorlaufzeit für Verschiebung
+event-type-form-notice-help = Leer lassen für keine Einschränkung.
+event-type-form-notice-unit-minutes = Minuten
+event-type-form-notice-unit-hours = Stunden
+event-type-form-notice-unit-days = Tage
+confirmed-cancel-notice-info = Eine Stornierung erfordert eine Vorlaufzeit von mindestens { $minutes } Minuten vor dem Termin.
+confirmed-reschedule-notice-info = Eine Terminverschiebung erfordert eine Vorlaufzeit von mindestens { $minutes } Minuten vor dem Termin.
+booking-blocked-title-cancel = Diese Buchung kann nicht mehr online storniert werden
+booking-blocked-title-reschedule = Diese Buchung kann nicht mehr online verschoben werden
+booking-blocked-body = Der Gastgeber verlangt eine Vorlaufzeit von mindestens { $minutes } Minuten. Wenn Sie nicht teilnehmen können, schreiben Sie bitte direkt an <a href="mailto:{ $host_email }">{ $host_email }</a>.

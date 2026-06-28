@@ -230,3 +230,22 @@ email-cancel-headline-by-host = Votre réservation a été annulée par { $host 
 email-cancel-headline-by-guest = Votre réservation a été annulée.
 email-cancel-ics-attached-plain = Une annulation de calendrier est jointe.
 email-cancel-ics-attached-html = Une annulation de calendrier est jointe à cet e-mail.
+
+# --- completed 2026-06-28 (was falling back to English) ---
+team-meet-the-team = Découvrez l'équipe
+team-prefer-someone = Vous préférez quelqu'un en particulier ? Choisissez un nom.
+team-members-one = membre
+team-members-other = membres
+email-confirm-cancel-notice = Remarque : l'annulation requiert un préavis d'au moins { $minutes } minutes.
+email-confirm-reschedule-notice = Remarque : la modification requiert un préavis d'au moins { $minutes } minutes.
+event-type-form-cancel-notice-label = Préavis minimum pour annuler
+event-type-form-reschedule-notice-label = Préavis minimum pour reporter
+event-type-form-notice-help = Laissez vide pour ne pas appliquer de restriction.
+event-type-form-notice-unit-minutes = minutes
+event-type-form-notice-unit-hours = heures
+event-type-form-notice-unit-days = jours
+confirmed-cancel-notice-info = L'annulation requiert un préavis d'au moins { $minutes } minutes avant la réunion.
+confirmed-reschedule-notice-info = La modification requiert un préavis d'au moins { $minutes } minutes avant la réunion.
+booking-blocked-title-cancel = Cette réservation ne peut plus être annulée en ligne
+booking-blocked-title-reschedule = Cette réservation ne peut plus être reportée en ligne
+booking-blocked-body = L'hôte requiert un préavis d'au moins { $minutes } minutes. Si vous ne pouvez pas être présent, écrivez directement à <a href="mailto:{ $host_email }">{ $host_email }</a>.

@@ -229,3 +229,23 @@ email-cancel-headline-by-host = Tu reserva ha sido cancelada por { $host }.
 email-cancel-headline-by-guest = Tu reserva ha sido cancelada.
 email-cancel-ics-attached-plain = Se adjunta una cancelación de calendario.
 email-cancel-ics-attached-html = Se adjunta una cancelación de calendario a este correo.
+
+# --- completed 2026-06-28 (was falling back to English) ---
+book-email-invalid = Introduce una dirección de correo electrónico completa, incluido el dominio (p. ej. jane@example.com).
+team-meet-the-team = Conoce al equipo
+team-prefer-someone = ¿Prefieres a alguien en concreto? Elige un nombre.
+team-members-one = miembro
+team-members-other = miembros
+email-confirm-cancel-notice = Nota: la cancelación requiere un aviso mínimo de { $minutes } minutos.
+email-confirm-reschedule-notice = Nota: reprogramar requiere un aviso mínimo de { $minutes } minutos.
+event-type-form-cancel-notice-label = Antelación mínima para cancelar
+event-type-form-reschedule-notice-label = Antelación mínima para reprogramar
+event-type-form-notice-help = Déjalo vacío para no aplicar restricciones.
+event-type-form-notice-unit-minutes = minutos
+event-type-form-notice-unit-hours = horas
+event-type-form-notice-unit-days = días
+confirmed-cancel-notice-info = La cancelación requiere un aviso mínimo de { $minutes } minutos antes de la reunión.
+confirmed-reschedule-notice-info = Reprogramar requiere un aviso mínimo de { $minutes } minutos antes de la reunión.
+booking-blocked-title-cancel = Esta reserva ya no se puede cancelar en línea
+booking-blocked-title-reschedule = Esta reserva ya no se puede reprogramar en línea
+booking-blocked-body = El anfitrión requiere una antelación mínima de { $minutes } minutos. Si no puedes asistir, escribe directamente a <a href="mailto:{ $host_email }">{ $host_email }</a>.
