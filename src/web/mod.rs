@@ -4768,50 +4768,50 @@ fn page_lang_options(codes: &[String]) -> Vec<minijinja::Value> {
 }
 
 /// Languages a single event type offers (default + any translations).
-async fn event_page_langs(pool: &SqlitePool, et_id: &str) -> Vec<String> {
-    let def: String =
-        sqlx::query_scalar("SELECT COALESCE(default_lang, 'pt') FROM event_types WHERE id = ?")
-            .bind(et_id)
-            .fetch_one(pool)
-            .await
-            .unwrap_or_else(|_| "pt".to_string());
-    let trs: Vec<(String,)> =
-        sqlx::query_as("SELECT lang FROM event_type_translations WHERE event_type_id = ?")
-            .bind(et_id)
-            .fetch_all(pool)
-            .await
-            .unwrap_or_default();
-    let mut codes = vec![def];
-    for (l,) in trs {
-        codes.push(l);
-    }
-    codes
-}
-
-/// Languages a team's enabled event types collectively offer.
-async fn team_page_langs(pool: &SqlitePool, team_id: &str) -> Vec<String> {
-    let defs: Vec<(Option<String>,)> = sqlx::query_as(
-        "SELECT DISTINCT default_lang FROM event_types WHERE team_id = ? AND enabled = 1",
-    )
-    .bind(team_id)
-    .fetch_all(pool)
-    .await
-    .unwrap_or_default();
-    let trs: Vec<(String,)> = sqlx::query_as(
-        "SELECT DISTINCT etl.lang FROM event_type_translations etl JOIN event_types et ON et.id = etl.event_type_id WHERE et.team_id = ? AND et.enabled = 1",
+/// Languages a team offers = the union of its enabled members' active
+/// languages (so the switcher shows what the team can serve, with content
+/// falling back to each event's default where a translation is missing).
+async fn team_member_langs(pool: &SqlitePool, team_id: &str) -> Vec<String> {
+    let rows: Vec<(Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT u.language, u.active_languages FROM users u JOIN team_members tm ON tm.user_id = u.id WHERE tm.team_id = ? AND u.enabled = 1",
     )
     .bind(team_id)
     .fetch_all(pool)
     .await
     .unwrap_or_default();
     let mut codes: Vec<String> = Vec::new();
-    for (d,) in defs {
-        codes.push(d.unwrap_or_else(|| "pt".to_string()));
-    }
-    for (l,) in trs {
-        codes.push(l);
+    for (lang, active) in rows {
+        codes.extend(content_langs(lang.as_deref(), active.as_deref()));
     }
     codes
+}
+
+/// Languages an event-type page offers in the public switcher: a team event's
+/// page follows the team's languages; a personal event's page follows the
+/// host's active languages. Content falls back to the event default otherwise.
+async fn et_page_langs(pool: &SqlitePool, et_id: &str) -> Vec<String> {
+    let team_id: Option<String> =
+        sqlx::query_scalar("SELECT team_id FROM event_types WHERE id = ?")
+            .bind(et_id)
+            .fetch_one(pool)
+            .await
+            .ok()
+            .flatten();
+    if let Some(tid) = team_id.filter(|s| !s.is_empty()) {
+        return team_member_langs(pool, &tid).await;
+    }
+    let row: Option<(Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT u.language, u.active_languages FROM event_types et JOIN accounts a ON a.id = et.account_id JOIN users u ON u.id = a.user_id WHERE et.id = ?",
+    )
+    .bind(et_id)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten();
+    match row {
+        Some((lang, active)) => content_langs(lang.as_deref(), active.as_deref()),
+        None => vec!["pt".to_string()],
+    }
 }
 
 fn form_title_for<'a>(form: &'a EventTypeForm, lang: &str) -> Option<&'a str> {
@@ -9323,7 +9323,7 @@ async fn team_profile_page(
     };
 
     let lang = crate::i18n::detect_from_headers(&headers);
-    let page_languages = page_lang_options(&team_page_langs(&state.pool, &team_id).await);
+    let page_languages = page_lang_options(&team_member_langs(&state.pool, &team_id).await);
     Html(
         tmpl.render(context! {
             lang => lang,
@@ -9630,7 +9630,7 @@ async fn show_group_slots(
     };
     let rendered = tmpl
         .render(context! {
-            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
+            page_languages => page_lang_options(&et_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -9801,7 +9801,7 @@ async fn show_group_book_form(
     let captcha = captcha::CaptchaVars::from_config(&*state.captcha_config.read().await);
     let rendered = tmpl
         .render(context! {
-            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
+            page_languages => page_lang_options(&et_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -10556,7 +10556,7 @@ async fn show_dynamic_group_slots(
     };
     Html(
         tmpl.render(context! {
-            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
+            page_languages => page_lang_options(&et_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -10686,7 +10686,7 @@ async fn show_dynamic_group_book_form(
     let captcha = captcha::CaptchaVars::from_config(&*state.captcha_config.read().await);
     Html(
         tmpl.render(context! {
-            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
+            page_languages => page_lang_options(&et_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -11285,7 +11285,7 @@ async fn show_slots_for_user(
     };
     let rendered = tmpl
         .render(context! {
-            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
+            page_languages => page_lang_options(&et_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -11453,7 +11453,7 @@ async fn show_book_form_for_user(
     let captcha = captcha::CaptchaVars::from_config(&*state.captcha_config.read().await);
     let rendered = tmpl
         .render(context! {
-            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
+            page_languages => page_lang_options(&et_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -13391,7 +13391,7 @@ async fn show_slots(
     };
     let rendered = tmpl
         .render(context! {
-            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
+            page_languages => page_lang_options(&et_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -13516,7 +13516,7 @@ async fn show_book_form(
     let captcha = captcha::CaptchaVars::from_config(&*state.captcha_config.read().await);
     let rendered = tmpl
         .render(context! {
-            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
+            page_languages => page_lang_options(&et_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
@@ -17395,7 +17395,7 @@ async fn guest_reschedule_slots(
     };
     let rendered = tmpl
         .render(context! {
-            page_languages => page_lang_options(&event_page_langs(&state.pool, &et_id).await),
+            page_languages => page_lang_options(&et_page_langs(&state.pool, &et_id).await),
             meeting_jitsi_label => meeting_jitsi_label,
             meeting_webhook_label => meeting_webhook_label,
             event_type => context! {
