@@ -8,9 +8,9 @@ confirmed-heading-rescheduled = ¡Reprogramado!
 confirmed-heading-pending = Pendiente de confirmación
 confirmed-heading-booked = ¡Listo, reservado!
 
-confirmed-subtitle-reschedule-requested = Tu solicitud de reprogramación se ha enviado a { $host }. Recibirás un correo en { $email } una vez que se apruebe.
-confirmed-subtitle-rescheduled = Tu reserva ha sido reprogramada. Se ha enviado un correo de confirmación a { $email }.
-confirmed-subtitle-pending = Tu solicitud de reserva se ha enviado a { $host }. Recibirás un correo en { $email } una vez que se confirme.
+confirmed-subtitle-reschedule-requested = Su solicitud de reprogramación se ha enviado a { $host }. Recibirá un correo en { $email } una vez que se apruebe.
+confirmed-subtitle-rescheduled = Su reserva ha sido reprogramada. Se ha enviado un correo de confirmación a { $email }.
+confirmed-subtitle-pending = Su solicitud de reserva se ha enviado a { $host }. Recibirá un correo en { $email } una vez que se confirme.
 confirmed-subtitle-booked = Se ha enviado un correo de confirmación a { $email }.
 
 confirmed-detail-event = Evento:
@@ -28,7 +28,7 @@ confirmed-book-another = Reservar otro horario
 slots-location-video = Videollamada
 slots-location-phone = Llamada telefónica
 
-slots-tz-label = Tu zona horaria
+slots-tz-label = Su zona horaria
 slots-time-format-label = Formato de hora
 
 slots-view-month = Vista mensual
@@ -51,9 +51,9 @@ slots-weekday-fri-short = V
 slots-weekday-sat-short = S
 slots-weekday-sun-short = D
 
-slots-select-date = Selecciona una fecha
+slots-select-date = Seleccione una fecha
 slots-loading-availability = Cargando disponibilidad...
-slots-click-highlighted = Haz clic en una fecha resaltada para ver los horarios disponibles
+slots-click-highlighted = Haga clic en una fecha resaltada para ver los horarios disponibles
 slots-no-times-month = No hay horarios disponibles este mes
 slots-no-times-day = No hay horarios disponibles este día
 slots-no-availability-participants = No se ha encontrado disponibilidad común para todos los participantes este mes
@@ -63,13 +63,13 @@ slots-week-more = más
 
 book-page-title = Reservar { $title }
 book-back-to-times = Volver a los horarios
-book-name-label = Tu nombre
+book-name-label = Su nombre
 book-name-placeholder = Juana Pérez
 book-email-label = Correo electrónico
 book-email-placeholder = juana@example.com
 book-notes-label = Notas
 book-notes-optional = (opcional)
-book-notes-placeholder = ¿Hay algún tema que te gustaría tratar?
+book-notes-placeholder = ¿Hay algún tema que le gustaría tratar?
 book-additional-guests-label = Invitados adicionales
 book-additional-guests-hint = (opcional, hasta { $max })
 book-add-guest-btn = + Añadir invitado
@@ -77,7 +77,7 @@ book-guest-email-placeholder = colega@example.com
 captcha-label = Verificación de seguridad
 captcha-initial-state = Verifique que es humano
 captcha-verifying = Verificando...
-captcha-solved = Eres humano
+captcha-solved = Es humano
 captcha-error = Error
 captcha-troubleshooting = Solución de problemas
 captcha-wasm-disabled = Active WASM para una resolución significativamente más rápida
@@ -93,25 +93,25 @@ book-confirm-button = Confirmar reserva
 common-detail-guest = Invitado:
 common-detail-reason = Motivo:
 common-reason-optional = (opcional)
-common-close-page = Puedes cerrar esta página.
+common-close-page = Puede cerrar esta página.
 
 # Cancel flow (booking_cancel_form.html, booking_cancelled_guest.html)
 
 cancel-page-title = Cancelar reserva
 cancel-heading = Cancelar reserva
-cancel-subtitle = Estás a punto de cancelar tu reserva.
+cancel-subtitle = Está a punto de cancelar su reserva.
 cancel-reason-label = Motivo
-cancel-reason-placeholder-host = Indícale al organizador el motivo...
+cancel-reason-placeholder-host = Indique al organizador el motivo...
 cancel-button = Cancelar reserva
 cancelled-heading = Reserva cancelada
-cancelled-subtitle = Tu reserva se ha cancelado y se ha notificado al organizador.
+cancelled-subtitle = Su reserva se ha cancelado y se ha notificado al organizador.
 
 # Decline flow (booking_decline_form.html, booking_declined.html)
 
 decline-page-title = Rechazar reserva
 decline-heading = Rechazar reserva
-decline-subtitle = Estás a punto de rechazar esta solicitud de reserva.
-decline-reason-placeholder-guest = Indícale al invitado el motivo...
+decline-subtitle = Está a punto de rechazar esta solicitud de reserva.
+decline-reason-placeholder-guest = Indique al invitado el motivo...
 decline-button = Rechazar reserva
 declined-heading = Reserva rechazada
 declined-subtitle = La reserva se ha rechazado y se ha notificado al invitado.
@@ -120,7 +120,7 @@ declined-subtitle = La reserva se ha rechazado y se ha notificado al invitado.
 
 approve-page-title = Aprobar reserva
 approve-heading = Aprobar reserva
-approve-subtitle = Estás a punto de aprobar esta solicitud de reserva.
+approve-subtitle = Está a punto de aprobar esta solicitud de reserva.
 approve-button = Aprobar reserva
 approved-heading = Reserva aprobada
 approved-subtitle = La reserva se ha confirmado y se ha enviado un correo de confirmación a { $email }.
@@ -129,12 +129,12 @@ approved-subtitle = La reserva se ha confirmado y se ha enviado un correo de con
 
 claim-page-title = Tomar reserva
 claim-heading = Tomar reserva
-claim-subtitle = Estás a punto de tomar esta reserva. Serás añadido como participante.
+claim-subtitle = Está a punto de tomar esta reserva. Será añadido como participante.
 claim-assigned-to = Asignada a:
 claim-button = Tomar esta reserva
 claimed-page-title = Reserva tomada
 claimed-heading = Reserva tomada
-claimed-subtitle = Has tomado esta reserva. Se ha enviado una invitación de calendario a tu correo.
+claimed-subtitle = Ha tomado esta reserva. Se ha enviado una invitación de calendario a su correo.
 already-claimed-page-title = Ya tomada
 already-claimed-heading = Ya tomada
 already-claimed-subtitle = Esta reserva ya ha sido tomada por { $name }.
@@ -156,7 +156,7 @@ host-resched-cancel-link = Cancelar
 
 resched-confirm-page-title = Confirmar reprogramación
 resched-confirm-heading = Confirmar reprogramación
-resched-confirm-subtitle = Estás a punto de mover tu reserva a un nuevo horario.
+resched-confirm-subtitle = Está a punto de mover su reserva a un nuevo horario.
 resched-was = Antes:
 resched-new = Ahora:
 resched-button = Confirmar reprogramación
@@ -165,14 +165,14 @@ resched-back-to-picker = Volver al selector de horarios
 # Base layout chrome (templates/base.html)
 
 base-loader-checking = Comprobando disponibilidad
-base-loader-please-wait = Por favor espera, cargando los datos del calendario...
+base-loader-please-wait = Por favor espere, cargando los datos del calendario...
 base-stop-impersonating = Dejar de suplantar
 base-theme-toggle = Cambiar de tema
 base-powered-by = Desarrollado por
 
 # Profile (templates/profile.html)
 
-profile-pick-event-type-invite = Selecciona un tipo de evento para reservar una hora.
+profile-pick-event-type-invite = Seleccione un tipo de evento para reservar una hora.
 profile-no-event-type = Aún no hay tipos de eventos disponibles.
 
 # Month and weekday names + per-locale date format patterns.
@@ -212,35 +212,35 @@ email-action-cancel-booking = Cancelar reserva
 
 email-confirm-subject = Confirmada: { $event } — { $date }
 email-confirm-greeting = Hola { $name },
-email-confirm-headline = ¡Tu reserva se ha confirmado!
+email-confirm-headline = ¡Su reserva se ha confirmado!
 email-confirm-ics-attached-plain = Se adjunta una invitación de calendario.
 email-confirm-ics-attached-html = Se adjunta una invitación de calendario a este correo.
-email-confirm-need-to-cancel = ¿Necesitas cancelar? { $url }
+email-confirm-need-to-cancel = ¿Necesita cancelar? { $url }
 
 # Email: guest reminder
 
 email-reminder-subject = Recordatorio: { $event } a las { $time }
-email-reminder-headline = Tu reunión está cerca.
+email-reminder-headline = Su reunión está cerca.
 
 # Email: guest cancellation
 
 email-cancel-subject = Cancelada: { $event } — { $date }
-email-cancel-headline-by-host = Tu reserva ha sido cancelada por { $host }.
-email-cancel-headline-by-guest = Tu reserva ha sido cancelada.
+email-cancel-headline-by-host = Su reserva ha sido cancelada por { $host }.
+email-cancel-headline-by-guest = Su reserva ha sido cancelada.
 email-cancel-ics-attached-plain = Se adjunta una cancelación de calendario.
 email-cancel-ics-attached-html = Se adjunta una cancelación de calendario a este correo.
 
 # --- completed 2026-06-28 (was falling back to English) ---
-book-email-invalid = Introduce una dirección de correo electrónico completa, incluido el dominio (p. ej. jane@example.com).
-team-meet-the-team = Conoce al equipo
-team-prefer-someone = ¿Prefieres a alguien en concreto? Elige un nombre.
+book-email-invalid = Introduzca una dirección de correo electrónico completa, incluido el dominio (p. ej. jane@example.com).
+team-meet-the-team = Conozca al equipo
+team-prefer-someone = ¿Prefiere a alguien en concreto? Elija un nombre.
 team-members-one = miembro
 team-members-other = miembros
 email-confirm-cancel-notice = Nota: la cancelación requiere un aviso mínimo de { $minutes } minutos.
 email-confirm-reschedule-notice = Nota: reprogramar requiere un aviso mínimo de { $minutes } minutos.
 event-type-form-cancel-notice-label = Antelación mínima para cancelar
 event-type-form-reschedule-notice-label = Antelación mínima para reprogramar
-event-type-form-notice-help = Déjalo vacío para no aplicar restricciones.
+event-type-form-notice-help = Déjelo vacío para no aplicar restricciones.
 event-type-form-notice-unit-minutes = minutos
 event-type-form-notice-unit-hours = horas
 event-type-form-notice-unit-days = días
@@ -248,4 +248,4 @@ confirmed-cancel-notice-info = La cancelación requiere un aviso mínimo de { $m
 confirmed-reschedule-notice-info = Reprogramar requiere un aviso mínimo de { $minutes } minutos antes de la reunión.
 booking-blocked-title-cancel = Esta reserva ya no se puede cancelar en línea
 booking-blocked-title-reschedule = Esta reserva ya no se puede reprogramar en línea
-booking-blocked-body = El anfitrión requiere una antelación mínima de { $minutes } minutos. Si no puedes asistir, escribe directamente a <a href="mailto:{ $host_email }">{ $host_email }</a>.
+booking-blocked-body = El anfitrión requiere una antelación mínima de { $minutes } minutos. Si no puede asistir, escriba directamente a <a href="mailto:{ $host_email }">{ $host_email }</a>.
