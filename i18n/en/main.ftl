@@ -271,4 +271,4 @@ team-switch-mid = ? Book with
 team-switch-or = or
 
 # Footer attribution shown on non-Portuguese pages ("… Sooma Labs Beta · Source")
-footer-powered-by = Booking powered by
+footer-powered-by = Powered by

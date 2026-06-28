@@ -257,4 +257,4 @@ team-switch-mid = ? Buchen Sie beim Team
 team-switch-or = oder
 
 # Footer attribution shown on non-Portuguese pages ("… Sooma Labs Beta · Source")
-footer-powered-by = Buchung bereitgestellt von
+footer-powered-by = Bereitgestellt von

@@ -268,4 +268,4 @@ team-switch-mid = ? Agende com a equipa
 team-switch-or = ou
 
 # Footer attribution shown on non-Portuguese pages ("… Sooma Labs Beta · Source")
-footer-powered-by = Reservas com tecnologia de
+footer-powered-by = Powered by

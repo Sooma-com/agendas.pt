@@ -256,4 +256,4 @@ team-switch-mid =  ? Réservez avec l'équipe
 team-switch-or = ou
 
 # Footer attribution shown on non-Portuguese pages ("… Sooma Labs Beta · Source")
-footer-powered-by = Réservations propulsées par
+footer-powered-by = Propulsé par
