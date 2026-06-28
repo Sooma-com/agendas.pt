@@ -1673,6 +1673,21 @@
     });
   }
 
+  // Open on the first month that actually has availability, so the month grid
+  // and column/list views don't land on an empty current month (the week view
+  // self-corrects via its own offset). Only when slots are already known
+  // (non-deferred) and the first available date is in a later month.
+  if (!calData.deferredLoad) {
+    var availKeys = Object.keys(availableDates).filter(function (k) { return k >= todayDate; }).sort();
+    if (availKeys.length) {
+      var fp = availKeys[0].split('-');
+      var firstYm = fp[0] + '-' + fp[1];
+      if (firstYm !== monthYear) {
+        navigateMonth(parseInt(fp[0], 10), parseInt(fp[1], 10));
+      }
+    }
+  }
+
   // Apply saved view preference
   if (currentView !== 'month') {
     switchView(currentView);
