@@ -3198,6 +3198,54 @@ async fn save_user_bio_translations(
     }
 }
 
+fn form_team_desc_for<'a>(form: &'a GroupSettingsForm, lang: &str) -> Option<&'a str> {
+    let v = match lang {
+        "en" => form.description_en.as_deref(),
+        "pt" => form.description_pt.as_deref(),
+        "es" => form.description_es.as_deref(),
+        "fr" => form.description_fr.as_deref(),
+        "de" => form.description_de.as_deref(),
+        "it" => form.description_it.as_deref(),
+        _ => None,
+    };
+    v.map(str::trim).filter(|s| !s.is_empty())
+}
+
+/// Upsert per-language team description rows (the default language lives in
+/// teams.description). Mirrors `save_user_bio_translations`.
+async fn save_team_description_translations(
+    pool: &SqlitePool,
+    team_id: &str,
+    default_lang: &str,
+    active_langs: &[String],
+    form: &GroupSettingsForm,
+) {
+    for lang in CONTENT_LANGS {
+        if lang == default_lang {
+            continue;
+        }
+        let keep = active_langs.iter().any(|l| l == lang);
+        let desc = if keep { form_team_desc_for(form, lang) } else { None };
+        if let Some(desc) = desc {
+            let _ = sqlx::query(
+                "INSERT INTO team_translations (team_id, lang, description) VALUES (?, ?, ?)
+                 ON CONFLICT(team_id, lang) DO UPDATE SET description = excluded.description",
+            )
+            .bind(team_id)
+            .bind(lang)
+            .bind(desc)
+            .execute(pool)
+            .await;
+        } else {
+            let _ = sqlx::query("DELETE FROM team_translations WHERE team_id = ? AND lang = ?")
+                .bind(team_id)
+                .bind(lang)
+                .execute(pool)
+                .await;
+        }
+    }
+}
+
 async fn settings_save(
     State(state): State<Arc<AppState>>,
     auth_user: crate::auth::AuthUser,
@@ -3710,6 +3758,13 @@ struct GroupSettingsForm {
     name: Option<String>,
     slug: Option<String>,
     description: Option<String>,
+    // Per-language description variants (default language uses `description`).
+    description_en: Option<String>,
+    description_pt: Option<String>,
+    description_es: Option<String>,
+    description_fr: Option<String>,
+    description_de: Option<String>,
+    description_it: Option<String>,
     visibility: Option<String>,
     #[serde(default)]
     members: String,
@@ -3827,6 +3882,42 @@ async fn team_settings_page(
     )
     .await;
 
+    // Per-language description tabs: default language first, then the editing
+    // user's active languages (the team's base description in teams.description
+    // is authored in the user's default content language).
+    let (desc_default_lang, desc_show_langs) = user_content_langs(user);
+    let desc_rows: Vec<(String, Option<String>)> =
+        sqlx::query_as("SELECT lang, description FROM team_translations WHERE team_id = ?")
+            .bind(&tid)
+            .fetch_all(&state.pool)
+            .await
+            .unwrap_or_default();
+    let mut desc_map: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    desc_map.insert(
+        desc_default_lang.clone(),
+        description.clone().unwrap_or_default(),
+    );
+    for (lang, d) in &desc_rows {
+        desc_map.insert(lang.clone(), d.clone().unwrap_or_default());
+    }
+    let desc_labels: std::collections::HashMap<&str, &str> =
+        crate::i18n::supported_with_labels().collect();
+    let desc_languages: Vec<minijinja::Value> = desc_show_langs
+        .iter()
+        .map(|code| {
+            context! {
+                code => code,
+                label => desc_labels.get(code.as_str()).copied().unwrap_or(code.as_str()),
+                is_default => *code == desc_default_lang,
+            }
+        })
+        .collect();
+    let form_descs: std::collections::HashMap<String, String> = desc_show_langs
+        .iter()
+        .map(|c| (c.clone(), desc_map.get(c).cloned().unwrap_or_default()))
+        .collect();
+
     let tmpl = match state.templates.get_template("team_settings.html") {
         Ok(t) => t,
         Err(e) => return internal_error_html("template render", &e),
@@ -3839,6 +3930,8 @@ async fn team_settings_page(
             team_name => team_name,
             team_slug => team_slug,
             team_description => description.unwrap_or_default(),
+            desc_languages => desc_languages,
+            form_descs => form_descs,
             team_has_avatar => avatar_path.is_some(),
             team_initials => compute_initials(&team_name),
             visibility => visibility,
@@ -3921,6 +4014,19 @@ async fn team_settings_save(
         .bind(&team_id)
         .execute(&state.pool)
         .await;
+
+    // Persist per-language description translations (default lives in the base
+    // column above). The team's default/active languages follow the editing
+    // user's content-language configuration.
+    let (desc_default_lang, desc_active_langs) = user_content_langs(user);
+    save_team_description_translations(
+        &state.pool,
+        &team_id,
+        &desc_default_lang,
+        &desc_active_langs,
+        &form,
+    )
+    .await;
 
     // Update visibility if provided
     if let Some(ref vis) = form.visibility {
@@ -9205,7 +9311,7 @@ async fn team_profile_page(
     let (
         team_id,
         team_name,
-        team_description,
+        _team_description,
         team_avatar_path,
         team_visibility,
         team_invite_token,
@@ -9351,6 +9457,20 @@ async fn team_profile_page(
 
     let lang = crate::i18n::detect_from_headers(&headers);
     let page_languages = page_lang_options(&team_member_langs(&state.pool, &team_id).await);
+    // Resolve the team description for the visitor's language, falling back to
+    // the base (default-language) description in teams.description.
+    let resolved_team_desc: Option<String> = sqlx::query_scalar(
+        "SELECT COALESCE(NULLIF(TRIM((SELECT tt.description FROM team_translations tt \
+             WHERE tt.team_id = ? AND tt.lang = ?)), ''), t.description) \
+         FROM teams t WHERE t.id = ?",
+    )
+    .bind(&team_id)
+    .bind(content_lang)
+    .bind(&team_id)
+    .fetch_optional(&state.pool)
+    .await
+    .ok()
+    .flatten();
     Html(
         tmpl.render(context! {
             lang => lang,
@@ -9358,7 +9478,7 @@ async fn team_profile_page(
             team_id => team_id,
             team_name => team_name,
             team_slug => team_slug,
-            team_description => team_description.as_deref().map(crate::utils::render_inline_markdown),
+            team_description => resolved_team_desc.as_deref().map(crate::utils::render_inline_markdown),
             team_has_avatar => team_avatar_path.is_some(),
             team_initials => compute_initials(&team_name),
             members => members_ctx,

@@ -250,3 +250,8 @@ confirmed-reschedule-notice-info = Eine Terminverschiebung erfordert eine Vorlau
 booking-blocked-title-cancel = Diese Buchung kann nicht mehr online storniert werden
 booking-blocked-title-reschedule = Diese Buchung kann nicht mehr online verschoben werden
 booking-blocked-body = Der Gastgeber verlangt eine Vorlaufzeit von mindestens { $minutes } Minuten. Wenn Sie nicht teilnehmen können, schreiben Sie bitte direkt an <a href="mailto:{ $host_email }">{ $host_email }</a>.
+
+# Team profile: "wrong topic?" cross-team switch hint
+team-switch-prefix = Geht es nicht um
+team-switch-mid = ? Buchen Sie beim Team
+team-switch-or = oder

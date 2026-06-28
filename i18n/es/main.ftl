@@ -249,3 +249,8 @@ confirmed-reschedule-notice-info = Reprogramar requiere un aviso mínimo de { $m
 booking-blocked-title-cancel = Esta reserva ya no se puede cancelar en línea
 booking-blocked-title-reschedule = Esta reserva ya no se puede reprogramar en línea
 booking-blocked-body = El anfitrión requiere una antelación mínima de { $minutes } minutos. Si no puede asistir, escriba directamente a <a href="mailto:{ $host_email }">{ $host_email }</a>.
+
+# Team profile: "wrong topic?" cross-team switch hint
+team-switch-prefix = ¿El asunto no es
+team-switch-mid = ? Agende con el equipo
+team-switch-or = o

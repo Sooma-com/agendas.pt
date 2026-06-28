@@ -249,3 +249,8 @@ confirmed-reschedule-notice-info = La modification requiert un préavis d'au moi
 booking-blocked-title-cancel = Cette réservation ne peut plus être annulée en ligne
 booking-blocked-title-reschedule = Cette réservation ne peut plus être reportée en ligne
 booking-blocked-body = L'hôte requiert un préavis d'au moins { $minutes } minutes. Si vous ne pouvez pas être présent, écrivez directement à <a href="mailto:{ $host_email }">{ $host_email }</a>.
+
+# Team profile: "wrong topic?" cross-team switch hint
+team-switch-prefix = Ce n'est pas
+team-switch-mid = ? Réservez avec l'équipe
+team-switch-or = ou

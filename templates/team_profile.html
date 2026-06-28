@@ -51,7 +51,7 @@
   <div style="padding: 1.25rem 2rem 1.5rem;">
     {% if other_teams %}
     <div style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.55;">
-      O assunto não é <strong style="color: var(--text);">{{ team_name }}</strong>? Agende com a equipa {% for o in other_teams %}<a href="/team/{{ o.slug }}" style="color: var(--accent); text-decoration: none; font-weight: 600;">{{ o.name }}</a>{% if not loop.last %}{% if loop.revindex == 2 %} ou {% else %}, {% endif %}{% endif %}{% endfor %}.
+      {{ t("team-switch-prefix") }} <strong style="color: var(--text);">{{ team_name }}</strong>{{ t("team-switch-mid") }} {% for o in other_teams %}<a href="/team/{{ o.slug }}" style="color: var(--accent); text-decoration: none; font-weight: 600;">{{ o.name }}</a>{% if not loop.last %}{% if loop.revindex == 2 %} {{ t("team-switch-or") }} {% else %}, {% endif %}{% endif %}{% endfor %}.
     </div>
     {% endif %}
   </div>

@@ -264,3 +264,8 @@ confirmed-reschedule-notice-info = Rescheduling requires at least { $minutes } m
 booking-blocked-title-cancel = This booking can no longer be cancelled online
 booking-blocked-title-reschedule = This booking can no longer be rescheduled online
 booking-blocked-body = The host requires at least { $minutes } minutes of notice. If you cannot attend, please email <a href="mailto:{ $host_email }">{ $host_email }</a> directly.
+
+# Team profile: "wrong topic?" cross-team switch hint
+team-switch-prefix = This isn't about
+team-switch-mid = ? Book with
+team-switch-or = or

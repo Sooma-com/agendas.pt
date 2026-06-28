@@ -250,3 +250,8 @@ confirmed-reschedule-notice-info = La riprogrammazione richiede un preavviso di 
 booking-blocked-title-cancel = Questa prenotazione non può più essere annullata online
 booking-blocked-title-reschedule = Questa prenotazione non può più essere riprogrammata online
 booking-blocked-body = L'organizzatore richiede un preavviso di almeno { $minutes } minuti. Se non può partecipare, scriva direttamente a <a href="mailto:{ $host_email }">{ $host_email }</a>.
+
+# Team profile: "wrong topic?" cross-team switch hint
+team-switch-prefix = L'argomento non è
+team-switch-mid = ? Prenoti con il team
+team-switch-or = o

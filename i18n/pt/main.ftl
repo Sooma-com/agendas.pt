@@ -261,3 +261,8 @@ confirmed-reschedule-notice-info = O reagendamento requer um aviso de pelo menos
 booking-blocked-title-cancel = Esta marcação já não pode ser cancelada online
 booking-blocked-title-reschedule = Esta marcação já não pode ser reagendada online
 booking-blocked-body = O anfitrião exige um aviso de pelo menos { $minutes } minutos. Se não puder comparecer, envie um e-mail diretamente para <a href="mailto:{ $host_email }">{ $host_email }</a>.
+
+# Team profile: "wrong topic?" cross-team switch hint
+team-switch-prefix = O assunto não é
+team-switch-mid = ? Agende com a equipa
+team-switch-or = ou
