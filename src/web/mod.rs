@@ -9879,7 +9879,7 @@ async fn show_group_slots(
          JOIN team_members tm ON tm.user_id = u.id \
          LEFT JOIN event_type_member_weights etw ON etw.user_id = u.id AND etw.event_type_id = ? \
          WHERE tm.team_id = ? AND u.enabled = 1 AND COALESCE(etw.weight, 1) > 0 \
-         ORDER BY u.name",
+         ORDER BY COALESCE(etw.weight, 1) DESC, u.name",
     )
     .bind(&et_id)
     .bind(&team_id)
@@ -9895,6 +9895,7 @@ async fn show_group_slots(
                 name => uname,
                 has_avatar => ap.is_some(),
                 initials => compute_initials(uname),
+                color => color_from_initials(&compute_initials(uname)),
             }
         })
         .collect();
