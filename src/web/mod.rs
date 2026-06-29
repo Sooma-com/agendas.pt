@@ -1570,6 +1570,23 @@ fn compute_initials(name: &str) -> String {
     }
 }
 
+/// Deterministic solid avatar colour derived from a member's initials.
+///
+/// Hashes the (uppercased) initials to a hue and returns an `hsl()` string with
+/// fixed saturation/lightness, so the same initials always map to the same
+/// readable-against-white-text colour, and different members get distinct ones.
+fn color_from_initials(initials: &str) -> String {
+    // Simple stable FNV-1a-ish hash over the bytes (avoids RandomState's
+    // per-process seeding, which would change the colour on every restart).
+    let mut hash: u32 = 2_166_136_261;
+    for b in initials.to_uppercase().bytes() {
+        hash ^= b as u32;
+        hash = hash.wrapping_mul(16_777_619);
+    }
+    let hue = hash % 360;
+    format!("hsl({hue}, 55%, 42%)")
+}
+
 /// Build OIDC groups context with member details for stacked avatars.
 async fn build_groups_ctx(
     pool: &sqlx::SqlitePool,
@@ -9457,6 +9474,31 @@ async fn team_profile_page(
             .unwrap_or_default()
         };
 
+    // The avatar stack is ordered by each member's booking priority on the
+    // team's *first available* event type (highest weight first), matching the
+    // order a guest would be routed in. Falls back to name order when no event
+    // type / no weights are set. The visibility filter mirrors the event-type
+    // list above so anonymous visitors rank by the first public type.
+    let first_et_id: Option<String> = if viewer_is_member_or_admin {
+        sqlx::query_scalar(
+            "SELECT id FROM event_types WHERE team_id = ? AND enabled = 1 \
+             ORDER BY created_at LIMIT 1",
+        )
+        .bind(&team_id)
+        .fetch_optional(&state.pool)
+        .await
+        .unwrap_or(None)
+    } else {
+        sqlx::query_scalar(
+            "SELECT id FROM event_types WHERE team_id = ? AND enabled = 1 \
+             AND visibility = 'public' ORDER BY created_at LIMIT 1",
+        )
+        .bind(&team_id)
+        .fetch_optional(&state.pool)
+        .await
+        .unwrap_or(None)
+    };
+
     let members: Vec<(
         String,
         String,
@@ -9466,9 +9508,12 @@ async fn team_profile_page(
     )> = sqlx::query_as(
         "SELECT u.id, u.name, u.avatar_path, u.language, u.username FROM users u \
          JOIN team_members tm ON tm.user_id = u.id \
+         LEFT JOIN event_type_member_weights w \
+             ON w.user_id = u.id AND w.event_type_id = ? \
          WHERE tm.team_id = ? AND u.enabled = 1 \
-         ORDER BY u.name",
+         ORDER BY COALESCE(w.weight, 1) DESC, u.name",
     )
+    .bind(first_et_id.clone().unwrap_or_default())
     .bind(&team_id)
     .fetch_all(&state.pool)
     .await
@@ -9487,6 +9532,7 @@ async fn team_profile_page(
                 name => name,
                 has_avatar => ap.is_some(),
                 initials => compute_initials(name),
+                color => color_from_initials(&compute_initials(name)),
                 username => username,
             }
         })
