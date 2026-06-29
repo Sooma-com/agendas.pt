@@ -1243,6 +1243,7 @@ pub async fn create_router(pool: SqlitePool, data_dir: PathBuf, secret_key: [u8;
     Router::new()
         .merge(crate::auth::auth_router())
         .route("/", get(root_redirect))
+        .route("/about", get(about_page))
         .route("/dashboard", get(dashboard))
         .route("/dashboard/event-types", get(dashboard_event_types))
         .route(
@@ -1634,6 +1635,26 @@ fn sidebar_context(auth_user: &crate::auth::AuthUser, active: &str) -> minijinja
 
 async fn root_redirect() -> impl IntoResponse {
     Redirect::to("/auth/login")
+}
+
+// --- About / Acknowledgements (public; carries the AGPL source offer) ---
+
+async fn about_page(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    let lang = crate::i18n::detect_from_headers(&headers);
+    let tmpl = match state.templates.get_template("about.html") {
+        Ok(t) => t,
+        Err(e) => return internal_error_html("template render", &e),
+    };
+    Html(
+        tmpl.render(context! {
+            lang => lang,
+            company_link => state.company_link.read().await.clone(),
+        })
+        .unwrap_or_else(|e| internal_error_body("template render", &e)),
+    )
 }
 
 // --- Dashboard (overview) ---
