@@ -1,30 +1,64 @@
 {% extends "base.html" %}
 {% block title %}Sobre — Agendas.pt{% endblock %}
 {% block content %}
-<div class="card" style="max-width: 640px; margin: 1rem auto;">
-  <span style="display: inline-block; background: var(--accent); color: #fff; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.2rem 0.6rem; border-radius: 999px;">Novidade</span>
-
-  <h1 style="margin: 0.65rem 0 0.75rem;">Agendamentos gratuitos para clientes Sooma</h1>
-
-  <p>A solução de agendamentos está disponível gratuitamente, a título de cortesia, para
-    todos os clientes do serviço de
-    <a href="https://www.sooma.com" target="_blank" rel="noopener">email da Sooma</a>.
-    Esta oferta mantém-se em vigor enquanto o serviço não tiver uma oferta comercial definida.</p>
-
-  <div style="margin: 1.1rem 0; padding: 0.9rem 1.1rem; background: var(--surface-hover, rgba(127,127,127,0.08)); border-left: 3px solid var(--accent); border-radius: var(--radius);">
-    Após o lançamento da oferta comercial, os clientes que aderirem agora beneficiarão de um
-    período adicional de <strong>12 meses gratuitos</strong>.
-  </div>
-
+<style>
+  .about-card { max-width: 640px; margin: 1rem auto; }
+  .about-card h1 { margin: 0.65rem 0 0.75rem; }
+  .about-card h2 { font-size: 1.05rem; margin-top: 1.75rem; }
+  .about-badge { display: inline-block; background: var(--accent); color: #fff; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.2rem 0.6rem; border-radius: 999px; }
+  .about-callout { margin: 1.1rem 0; padding: 0.9rem 1.1rem; background: var(--surface-hover, rgba(127,127,127,0.08)); border-left: 3px solid var(--accent); border-radius: var(--radius); }
+  .about-copyright { margin-top: 1.5rem; font-size: 0.85rem; color: var(--text-muted); }
+</style>
+<div class="card about-card">
+  {% if lang == 'pt' %}
+  <span class="about-badge">Novidade</span>
+  <h1>Agendamentos gratuitos para clientes Sooma</h1>
+  <p>A solução de agendamentos está disponível gratuitamente, a título de cortesia, para todos os clientes do serviço de <a href="https://sooma.com" target="_blank" rel="noopener">email da Sooma</a>. Esta oferta mantém-se em vigor enquanto o serviço não tiver uma oferta comercial definida.</p>
+  <div class="about-callout">Após o lançamento da oferta comercial, os clientes que aderirem agora beneficiarão de um período adicional de <strong>12 meses gratuitos</strong>.</div>
   <p>Para aderir, contacte-nos: <a href="mailto:ajuda@sooma.pt">ajuda@sooma.pt</a></p>
-
-  <h2 style="font-size: 1.05rem; margin-top: 1.75rem;">Open source &amp; licence</h2>
-  <p>The booking service is built on <strong>cal.rs</strong>, an independent open-source
-    scheduling platform created by Olivier Lambert, and is distributed under the
-    <strong>GNU Affero General Public License v3 (AGPL-3.0)</strong>.
-    The complete source code of this service is available at:
-    <a href="https://github.com/Sooma-com/agendas.pt" target="_blank" rel="noopener">github.com/Sooma-com/agendas.pt</a></p>
-
-  <p style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--text-muted);">&copy; 2026 <a href="https://www.sooma.com" target="_blank" rel="noopener" style="color: inherit;">Sooma.com</a></p>
+  <h2>Código aberto e licença</h2>
+  <p>O serviço de agendamentos é construído sobre o <strong>cal.rs</strong>, uma plataforma de agendamentos open-source independente criada por Olivier Lambert, e é distribuído sob a <strong>GNU Affero General Public License v3 (AGPL-3.0)</strong>. O código-fonte completo deste serviço está disponível em: <a href="https://github.com/Sooma-com/agendas.pt" target="_blank" rel="noopener">github.com/Sooma-com/agendas.pt</a></p>
+  {% elif lang == 'es' %}
+  <span class="about-badge">Novedad</span>
+  <h1>Reservas gratuitas para clientes de Sooma</h1>
+  <p>La solución de reservas está disponible gratuitamente, como cortesía, para todos los clientes del <a href="https://sooma.com" target="_blank" rel="noopener">servicio de correo de Sooma</a>. Esta oferta se mantiene mientras el servicio no tenga una oferta comercial definida.</p>
+  <div class="about-callout">Tras el lanzamiento de la oferta comercial, los clientes que se registren ahora obtendrán <strong>12 meses gratis</strong> adicionales.</div>
+  <p>Para empezar, escríbenos: <a href="mailto:support@sooma.com">support@sooma.com</a></p>
+  <h2>Código abierto y licencia</h2>
+  <p>El servicio de reservas está construido sobre <strong>cal.rs</strong>, una plataforma de programación de código abierto independiente creada por Olivier Lambert, y se distribuye bajo la <strong>GNU Affero General Public License v3 (AGPL-3.0)</strong>. El código fuente completo de este servicio está disponible en: <a href="https://github.com/Sooma-com/agendas.pt" target="_blank" rel="noopener">github.com/Sooma-com/agendas.pt</a></p>
+  {% elif lang == 'fr' %}
+  <span class="about-badge">Nouveau</span>
+  <h1>Réservations gratuites pour les clients Sooma</h1>
+  <p>La solution de réservation est disponible gratuitement, à titre gracieux, pour tous les clients du <a href="https://sooma.com" target="_blank" rel="noopener">service e-mail de Sooma</a>. Cette offre reste en vigueur tant que le service n'a pas d'offre commerciale définie.</p>
+  <div class="about-callout">Au lancement de l'offre commerciale, les clients qui s'inscrivent maintenant bénéficieront de <strong>12 mois gratuits</strong> supplémentaires.</div>
+  <p>Pour commencer, contactez-nous : <a href="mailto:support@sooma.com">support@sooma.com</a></p>
+  <h2>Code source ouvert et licence</h2>
+  <p>Le service de réservation est construit sur <strong>cal.rs</strong>, une plateforme de planification open-source indépendante créée par Olivier Lambert, et est distribué sous la <strong>GNU Affero General Public License v3 (AGPL-3.0)</strong>. Le code source complet de ce service est disponible à l'adresse : <a href="https://github.com/Sooma-com/agendas.pt" target="_blank" rel="noopener">github.com/Sooma-com/agendas.pt</a></p>
+  {% elif lang == 'de' %}
+  <span class="about-badge">Neu</span>
+  <h1>Kostenlose Terminbuchung für Sooma-Kunden</h1>
+  <p>Die Terminbuchungslösung steht allen Kunden des <a href="https://sooma.com" target="_blank" rel="noopener">E-Mail-Dienstes von Sooma</a> kostenlos und aus Kulanz zur Verfügung. Dieses Angebot gilt, solange der Dienst kein definiertes kommerzielles Angebot hat.</p>
+  <div class="about-callout">Nach dem Start des kommerziellen Angebots erhalten Kunden, die sich jetzt anmelden, zusätzliche <strong>12 Monate gratis</strong>.</div>
+  <p>Um zu beginnen, kontaktieren Sie uns: <a href="mailto:support@sooma.com">support@sooma.com</a></p>
+  <h2>Open Source &amp; Lizenz</h2>
+  <p>Der Buchungsdienst basiert auf <strong>cal.rs</strong>, einer unabhängigen Open-Source-Terminplanungsplattform von Olivier Lambert, und wird unter der <strong>GNU Affero General Public License v3 (AGPL-3.0)</strong> vertrieben. Der vollständige Quellcode dieses Dienstes ist verfügbar unter: <a href="https://github.com/Sooma-com/agendas.pt" target="_blank" rel="noopener">github.com/Sooma-com/agendas.pt</a></p>
+  {% elif lang == 'it' %}
+  <span class="about-badge">Novità</span>
+  <h1>Prenotazioni gratuite per i clienti Sooma</h1>
+  <p>La soluzione di prenotazione è disponibile gratuitamente, a titolo di cortesia, per tutti i clienti del <a href="https://sooma.com" target="_blank" rel="noopener">servizio email di Sooma</a>. L'offerta resta valida finché il servizio non avrà un'offerta commerciale definita.</p>
+  <div class="about-callout">Al lancio dell'offerta commerciale, i clienti che si registrano ora riceveranno <strong>12 mesi gratuiti</strong> aggiuntivi.</div>
+  <p>Per iniziare, contattaci: <a href="mailto:support@sooma.com">support@sooma.com</a></p>
+  <h2>Open source e licenza</h2>
+  <p>Il servizio di prenotazione è basato su <strong>cal.rs</strong>, una piattaforma di pianificazione open-source indipendente creata da Olivier Lambert, ed è distribuito con la <strong>GNU Affero General Public License v3 (AGPL-3.0)</strong>. Il codice sorgente completo di questo servizio è disponibile su: <a href="https://github.com/Sooma-com/agendas.pt" target="_blank" rel="noopener">github.com/Sooma-com/agendas.pt</a></p>
+  {% else %}
+  <span class="about-badge">New</span>
+  <h1>Free scheduling for Sooma customers</h1>
+  <p>The scheduling solution is available free of charge, as a courtesy, to all customers of <a href="https://sooma.com" target="_blank" rel="noopener">Sooma's email service</a>. This offer remains in place until the service has a defined commercial offering.</p>
+  <div class="about-callout">Once the commercial offering launches, customers who sign up now will receive an additional <strong>12 months free</strong>.</div>
+  <p>To get started, contact us: <a href="mailto:support@sooma.com">support@sooma.com</a></p>
+  <h2>Open source &amp; licence</h2>
+  <p>The booking service is built on <strong>cal.rs</strong>, an independent open-source scheduling platform created by Olivier Lambert, and is distributed under the <strong>GNU Affero General Public License v3 (AGPL-3.0)</strong>. The complete source code of this service is available at: <a href="https://github.com/Sooma-com/agendas.pt" target="_blank" rel="noopener">github.com/Sooma-com/agendas.pt</a></p>
+  {% endif %}
+  <p class="about-copyright">&copy; 2026 <a href="https://sooma.com" target="_blank" rel="noopener" style="color: inherit;">Sooma.com</a></p>
 </div>
 {% endblock %}
