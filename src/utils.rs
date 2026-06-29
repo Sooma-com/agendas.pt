@@ -152,8 +152,26 @@ pub fn convert_event_to_tz(
 /// Block-level elements (headings, lists, images, code blocks) are stripped.
 /// All HTML tags in the input are escaped by pulldown-cmark.
 /// Links get `target="_blank"` and `rel="noopener noreferrer"` for safety.
+/// Whether a markdown link destination is safe to render. Allows relative URLs
+/// (no scheme) and the http/https/mailto schemes; rejects everything else
+/// (javascript:, data:, vbscript:, …) to prevent script-URL injection.
+fn link_dest_allowed(url: &str) -> bool {
+    let t = url.trim();
+    let lower = t.to_ascii_lowercase();
+    if lower.starts_with("http://") || lower.starts_with("https://") || lower.starts_with("mailto:")
+    {
+        return true;
+    }
+    // A scheme is present only if ':' occurs before any '/', '?' or '#'. If
+    // there's no such colon, it's a relative URL/fragment/query — safe.
+    match t.find(':') {
+        None => true,
+        Some(colon) => t.find(['/', '?', '#']).is_some_and(|sep| sep < colon),
+    }
+}
+
 pub fn render_inline_markdown(text: &str) -> String {
-    use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
+    use pulldown_cmark::{CowStr, Event, Options, Parser, Tag, TagEnd};
 
     let parser = Parser::new_ext(text, Options::ENABLE_STRIKETHROUGH);
 
@@ -190,8 +208,32 @@ pub fn render_inline_markdown(text: &str) -> String {
         )
     });
 
+    // Neutralise unsafe link schemes (javascript:, data:, …); keep http/https/
+    // mailto and relative URLs. Disallowed destinations become empty.
+    let sanitized = filtered.map(|event| match event {
+        Event::Start(Tag::Link {
+            link_type,
+            dest_url,
+            title,
+            id,
+        }) => {
+            let dest = if link_dest_allowed(&dest_url) {
+                dest_url
+            } else {
+                CowStr::Borrowed("")
+            };
+            Event::Start(Tag::Link {
+                link_type,
+                dest_url: dest,
+                title,
+                id,
+            })
+        }
+        other => other,
+    });
+
     let mut html = String::new();
-    pulldown_cmark::html::push_html(&mut html, filtered);
+    pulldown_cmark::html::push_html(&mut html, sanitized);
 
     // Add target="_blank" and rel="noopener noreferrer" to links
     html = html.replace(
@@ -456,6 +498,17 @@ END:VCALENDAR";
         assert!(result.contains("target=\"_blank\""));
         assert!(result.contains("rel=\"noopener noreferrer\""));
         assert!(result.contains("My site"));
+    }
+
+    #[test]
+    fn bio_blocks_unsafe_link_schemes() {
+        // javascript:/data: destinations are neutralised (href emptied).
+        assert!(!render_inline_markdown("[x](javascript:alert(1))").contains("javascript:"));
+        assert!(!render_inline_markdown("[x](data:text/html,abc)").contains("data:text/html"));
+        // Safe schemes and relative URLs survive.
+        assert!(render_inline_markdown("[ok](https://example.com)").contains("https://example.com"));
+        assert!(render_inline_markdown("[m](mailto:a@b.com)").contains("mailto:a@b.com"));
+        assert!(render_inline_markdown("[rel](/path/page)").contains("/path/page"));
     }
 
     #[test]

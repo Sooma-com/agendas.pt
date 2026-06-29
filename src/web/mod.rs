@@ -1639,10 +1639,7 @@ async fn root_redirect() -> impl IntoResponse {
 
 // --- About / Acknowledgements (public; carries the AGPL source offer) ---
 
-async fn about_page(
-    State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
+async fn about_page(State(state): State<Arc<AppState>>, headers: HeaderMap) -> impl IntoResponse {
     let lang = crate::i18n::detect_from_headers(&headers);
     let tmpl = match state.templates.get_template("about.html") {
         Ok(t) => t,
@@ -3275,8 +3272,16 @@ async fn save_team_translations(
             continue;
         }
         let keep = active_langs.iter().any(|l| l == lang);
-        let name = if keep { form_team_name_for(form, lang) } else { None };
-        let desc = if keep { form_team_desc_for(form, lang) } else { None };
+        let name = if keep {
+            form_team_name_for(form, lang)
+        } else {
+            None
+        };
+        let desc = if keep {
+            form_team_desc_for(form, lang)
+        } else {
+            None
+        };
         if name.is_none() && desc.is_none() {
             let _ = sqlx::query("DELETE FROM team_translations WHERE team_id = ? AND lang = ?")
                 .bind(team_id)
@@ -3951,10 +3956,8 @@ async fn team_settings_page(
             .fetch_all(&state.pool)
             .await
             .unwrap_or_default();
-    let mut desc_map: std::collections::HashMap<String, String> =
-        std::collections::HashMap::new();
-    let mut name_map: std::collections::HashMap<String, String> =
-        std::collections::HashMap::new();
+    let mut desc_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut name_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
     desc_map.insert(
         desc_default_lang.clone(),
         description.clone().unwrap_or_default(),
