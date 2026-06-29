@@ -262,3 +262,6 @@ footer-powered-by = Bereitgestellt von
 # Expand/collapse control on clamped team/profile descriptions
 bio-more = [mehr]
 bio-less = [weniger]
+
+# Footer link to the About / acknowledgements page
+footer-about = Über
