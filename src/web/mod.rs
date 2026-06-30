@@ -6452,7 +6452,7 @@ fn render_source_edit_form(
     auth_user: &crate::auth::AuthUser,
     source_id: &str,
     name: &str,
-    url: &str,
+    _url: &str,
     username: &str,
     error: &str,
 ) -> Html<String> {
