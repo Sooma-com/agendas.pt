@@ -3016,7 +3016,8 @@ mod tests {
 
         // Empty/unknown timezone falls back to the UTC form.
         let fallback = generate_ics_localized(&details, "", "");
-        assert!(fallback.contains("DTSTART:20260710T090000Z"));
+        // Falls back to UTC via the guest zone (Europe/Paris = UTC+2 in July).
+        assert!(fallback.contains("DTSTART:20260710T080000Z"));
         assert!(!fallback.contains("TZID="));
     }
 
