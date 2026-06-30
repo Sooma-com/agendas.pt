@@ -526,16 +526,21 @@
   .week-day-header.today .week-day-num {
     color: var(--accent);
     font-weight: 800;
-    position: relative;
   }
-  .week-day-header.today .week-day-num::after {
+  /* Reserve the today-dot's space on every column so the active-day marker
+     never makes that column's header taller and pushes its slots out of
+     alignment with the same hours on other days. */
+  .week-day-header .week-day-num::after {
     content: '';
     display: block;
     width: 4px;
     height: 4px;
     border-radius: 50%;
-    background: var(--accent);
+    background: transparent;
     margin: 2px auto 0;
+  }
+  .week-day-header.today .week-day-num::after {
+    background: var(--accent);
   }
   .week-day-header.no-slots {
     opacity: 0.4;
