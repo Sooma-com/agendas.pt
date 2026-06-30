@@ -480,7 +480,8 @@ fn local_dt_with_vtimezone(
         NaiveDateTime::parse_from_str(&format!("{date} {start_time}:00"), "%Y-%m-%d %H:%M:%S")
             .ok()?;
     let end_naive =
-        NaiveDateTime::parse_from_str(&format!("{date} {end_time}:00"), "%Y-%m-%d %H:%M:%S").ok()?;
+        NaiveDateTime::parse_from_str(&format!("{date} {end_time}:00"), "%Y-%m-%d %H:%M:%S")
+            .ok()?;
 
     let start_local = tz.from_local_datetime(&start_naive).earliest()?;
 
