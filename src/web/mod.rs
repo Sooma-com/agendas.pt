@@ -6270,80 +6270,17 @@ async fn delete_event_type(
 #[derive(Deserialize)]
 struct SourceForm {
     _csrf: Option<String>,
-    provider: Option<String>,
-    /// Backend protocol: "caldav" (default) or "ews".
-    #[serde(default)]
-    provider_type: Option<String>,
     name: String,
-    url: String,
     username: String,
     password: String,
     no_test: Option<String>,
 }
 
-/// Resolve and validate the provider type from a form input. Defaults to
-/// `caldav` when the field is missing (older clients) and rejects unknown
-/// values rather than silently coercing.
-fn parse_provider_type(raw: Option<&str>) -> Result<String, String> {
-    let value = raw
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .unwrap_or("caldav");
-    match value {
-        crate::providers::factory::kinds::CALDAV => Ok("caldav".to_string()),
-        crate::providers::factory::kinds::EWS => Ok("ews".to_string()),
-        other => Err(format!("Unknown provider type '{}'", other)),
-    }
-}
-
-/// Preset list shown in the source-add form. Tuple is
-/// `(id, display name, default URL, backend)`, where `backend` is `caldav`
-/// or `ews`. The template uses the backend tag to keep the Backend dropdown
-/// in sync with the preset choice.
-fn caldav_providers() -> Vec<(&'static str, &'static str, &'static str, &'static str)> {
-    vec![
-        (
-            "bluemind",
-            "BlueMind",
-            "https://mail.example.com/dav/",
-            "caldav",
-        ),
-        (
-            "nextcloud",
-            "Nextcloud",
-            "https://cloud.example.com/remote.php/dav",
-            "caldav",
-        ),
-        (
-            "fastmail",
-            "Fastmail",
-            "https://caldav.fastmail.com/dav/calendars/user/you@fastmail.com/",
-            "caldav",
-        ),
-        ("icloud", "iCloud", "https://caldav.icloud.com/", "caldav"),
-        (
-            "zimbra",
-            "Zimbra",
-            "https://mail.example.com/dav/",
-            "caldav",
-        ),
-        (
-            "sogo",
-            "SOGo",
-            "https://mail.example.com/SOGo/dav/",
-            "caldav",
-        ),
-        ("radicale", "Radicale", "https://cal.example.com/", "caldav"),
-        ("google", "Google Calendar", "", "caldav"),
-        (
-            "exchange",
-            "Microsoft Exchange (EWS)",
-            "https://mail.example.com/EWS/Exchange.asmx",
-            "ews",
-        ),
-        ("other", "Other / Generic CalDAV", "", "caldav"),
-    ]
-}
+/// Sooma's CalDAV DAV root. Backend, preset and URL are hardcoded to Sooma's
+/// hosting, so the add/edit form only collects a display name + credentials;
+/// calendars are auto-discovered under this root via PROPFIND.
+const SOOMA_CALDAV_URL: &str = "https://caldav.sooma.com/calendars/";
+const SOOMA_PROVIDER_TYPE: &str = "caldav";
 
 async fn new_source_form(
     State(state): State<Arc<AppState>>,
@@ -6354,32 +6291,12 @@ async fn new_source_form(
         Err(e) => return internal_error_html("template render", &e),
     };
 
-    let providers: Vec<minijinja::Value> = caldav_providers()
-        .iter()
-        .map(|(id, name, url, backend)| context! { id => id, name => name, url => url, backend => backend })
-        .collect();
-
-    let google_configured: bool = sqlx::query_scalar::<_, Option<String>>(
-        "SELECT google_oauth2_client_id FROM auth_config LIMIT 1",
-    )
-    .fetch_optional(&state.pool)
-    .await
-    .unwrap_or(None)
-    .flatten()
-    .map(|s| !s.is_empty())
-    .unwrap_or(false);
-
     let (impersonating, impersonating_name, _) = impersonation_ctx(&auth_user);
     Html(
         tmpl.render(context! {
-            providers => providers,
-            form_provider => "bluemind",
-            form_provider_type => "caldav",
             form_name => "",
-            form_url => "https://mail.example.com/dav/",
             form_username => "",
             error => "",
-            google_oauth2_configured => google_configured,
             sidebar => sidebar_context(&auth_user, "sources"),
             impersonating => impersonating,
             impersonating_name => impersonating_name,
@@ -6419,21 +6336,16 @@ async fn create_source(
         }
     };
 
-    let url = form.url.trim().to_string();
+    // Backend, preset and DAV URL are fixed to Sooma's CalDAV hosting.
+    let url = SOOMA_CALDAV_URL.to_string();
+    let provider_type = SOOMA_PROVIDER_TYPE.to_string();
     let username = form.username.trim().to_string();
     let name = form.name.trim().to_string();
 
-    if url.is_empty() || username.is_empty() || name.is_empty() || form.password.is_empty() {
+    if username.is_empty() || name.is_empty() || form.password.is_empty() {
         return render_source_form_error(&state, &auth_user, "All fields are required.", &form)
             .into_response();
     }
-
-    let provider_type = match parse_provider_type(form.provider_type.as_deref()) {
-        Ok(p) => p,
-        Err(msg) => {
-            return render_source_form_error(&state, &auth_user, &msg, &form).into_response();
-        }
-    };
 
     // Validate URL against SSRF (HTTPS-only, no private targets) for both
     // CalDAV and EWS — the validator is shared.
@@ -6520,19 +6432,10 @@ fn render_source_form_error(
         Err(e) => return internal_error_html("template render", &e),
     };
 
-    let providers: Vec<minijinja::Value> = caldav_providers()
-        .iter()
-        .map(|(id, name, url, backend)| context! { id => id, name => name, url => url, backend => backend })
-        .collect();
-
     let (impersonating, impersonating_name, _) = impersonation_ctx(auth_user);
     Html(
         tmpl.render(context! {
-            providers => providers,
-            form_provider => form.provider.as_deref().unwrap_or("other"),
-            form_provider_type => form.provider_type.as_deref().unwrap_or("caldav"),
             form_name => form.name.as_str(),
-            form_url => form.url.as_str(),
             form_username => form.username.as_str(),
             error => error,
             sidebar => sidebar_context(auth_user, "sources"),
@@ -6558,20 +6461,12 @@ fn render_source_edit_form(
         Err(e) => return Html(format!("Template error: {}", e)),
     };
 
-    let providers: Vec<minijinja::Value> = caldav_providers()
-        .iter()
-        .map(|(id, name, url, backend)| context! { id => id, name => name, url => url, backend => backend })
-        .collect();
-
     let (impersonating, impersonating_name, _) = impersonation_ctx(auth_user);
     Html(
         tmpl.render(context! {
             editing => true,
             source_id => source_id,
-            providers => providers,
-            form_provider => "other",
             form_name => name,
-            form_url => url,
             form_username => username,
             error => error,
             sidebar => sidebar_context(auth_user, "sources"),
@@ -6622,10 +6517,12 @@ async fn update_source(
     }
     let user = &auth_user.user;
 
-    // Confirm the source belongs to this user and grab the existing
-    // password (used as fallback when the form leaves it blank).
-    let existing: Option<(String,)> = sqlx::query_as(
-        "SELECT cs.password_enc
+    // Confirm the source belongs to this user and grab the existing password
+    // (fallback when the form leaves it blank) and URL (the DAV URL is no
+    // longer editable in the form — it's fixed to Sooma's hosting — so we keep
+    // whatever the source already has).
+    let existing: Option<(String, String)> = sqlx::query_as(
+        "SELECT cs.password_enc, cs.url
          FROM caldav_sources cs
          JOIN accounts a ON a.id = cs.account_id
          WHERE cs.id = ? AND a.user_id = ?",
@@ -6636,24 +6533,23 @@ async fn update_source(
     .await
     .unwrap_or(None);
 
-    let existing_password_enc = match existing {
-        Some((enc,)) => enc,
+    let (existing_password_enc, url) = match existing {
+        Some(t) => t,
         None => return Redirect::to("/dashboard/sources").into_response(),
     };
 
-    let url = form.url.trim().to_string();
     let username = form.username.trim().to_string();
     let name = form.name.trim().to_string();
 
-    if url.is_empty() || username.is_empty() || name.is_empty() {
+    if username.is_empty() || name.is_empty() {
         return render_source_edit_form(
             &state,
             &auth_user,
             &source_id,
             &form.name,
-            &form.url,
+            &url,
             &form.username,
-            "Name, URL, and username are required.",
+            "Name and username are required.",
         )
         .into_response();
     }

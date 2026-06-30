@@ -13,17 +13,11 @@
   {% endif %}
 
   <form method="POST" {% if editing %}action="/dashboard/sources/{{ source_id }}/edit"{% endif %} style="margin-top: 1.25rem;">
-    {# Backend, preset and DAV URL are hardcoded to Sooma's CalDAV server. #}
-    <input type="hidden" name="provider_type" value="caldav">
-    <input type="hidden" name="provider" value="other">
-
     <div id="basic-auth-fields">
       <div class="form-group">
         <label for="name">Display name</label>
         <input type="text" id="name" name="name" value="{{ form_name }}" placeholder="My Calendar">
       </div>
-
-      <input type="hidden" name="url" value="{% if editing and form_url %}{{ form_url }}{% else %}https://caldav.sooma.com/calendars/{% endif %}">
 
       <div class="form-grid-2">
         <div class="form-group">
