@@ -428,6 +428,99 @@ fn first_name(full_name: &str) -> &str {
 }
 
 pub fn generate_ics(details: &BookingDetails, method: &str) -> String {
+    // Guest-facing .ics: absolute UTC instants (every mail client converts).
+    let (dtstart, dtend) = convert_to_utc(
+        &details.date,
+        &details.start_time,
+        &details.end_time,
+        &details.guest_timezone,
+    );
+    render_ics(
+        details,
+        method,
+        &format!("DTSTART:{dtstart}\r\n"),
+        &format!("DTEND:{dtend}\r\n"),
+        "",
+    )
+}
+
+/// Like [`generate_ics`] but renders the event in `tz_name` (an IANA zone) using
+/// `DTSTART;TZID=…` plus an inline VTIMEZONE, so a calendar shows the booking in
+/// that timezone rather than UTC. Used for CalDAV write-back to the host's own
+/// calendar. Falls back to the UTC form when `tz_name` is empty or unparseable.
+pub fn generate_ics_localized(details: &BookingDetails, method: &str, tz_name: &str) -> String {
+    match local_dt_with_vtimezone(
+        &details.date,
+        &details.start_time,
+        &details.end_time,
+        tz_name,
+    ) {
+        Some((dtstart_line, dtend_line, vtimezone)) => {
+            render_ics(details, method, &dtstart_line, &dtend_line, &vtimezone)
+        }
+        None => generate_ics(details, method),
+    }
+}
+
+/// Build local wall-clock `DTSTART`/`DTEND` lines (with `TZID`) and a matching
+/// single-observance VTIMEZONE for a one-off booking in `tz_name`. A single
+/// observance is correct here because bookings are non-recurring, so only the
+/// offset in effect at the event instant matters. Returns `None` (caller falls
+/// back to UTC) when the zone or times can't be parsed.
+fn local_dt_with_vtimezone(
+    date: &str,
+    start_time: &str,
+    end_time: &str,
+    tz_name: &str,
+) -> Option<(String, String, String)> {
+    use chrono::{Offset, TimeZone};
+
+    let tz: Tz = tz_name.parse().ok()?;
+    let start_naive =
+        NaiveDateTime::parse_from_str(&format!("{date} {start_time}:00"), "%Y-%m-%d %H:%M:%S")
+            .ok()?;
+    let end_naive =
+        NaiveDateTime::parse_from_str(&format!("{date} {end_time}:00"), "%Y-%m-%d %H:%M:%S").ok()?;
+
+    let start_local = tz.from_local_datetime(&start_naive).earliest()?;
+
+    let offset_secs = start_local.offset().fix().local_minus_utc();
+    let sign = if offset_secs < 0 { '-' } else { '+' };
+    let abs = offset_secs.abs();
+    let offset_str = format!("{}{:02}{:02}", sign, abs / 3600, (abs % 3600) / 60);
+    let tzname = start_local.format("%Z").to_string();
+
+    let vtimezone = format!(
+        "BEGIN:VTIMEZONE\r\n\
+         TZID:{tz_name}\r\n\
+         BEGIN:STANDARD\r\n\
+         DTSTART:19700101T000000\r\n\
+         TZOFFSETFROM:{offset_str}\r\n\
+         TZOFFSETTO:{offset_str}\r\n\
+         TZNAME:{tzname}\r\n\
+         END:STANDARD\r\n\
+         END:VTIMEZONE\r\n"
+    );
+
+    let dtstart = start_naive.format("%Y%m%dT%H%M%S").to_string();
+    let dtend = end_naive.format("%Y%m%dT%H%M%S").to_string();
+    Some((
+        format!("DTSTART;TZID={tz_name}:{dtstart}\r\n"),
+        format!("DTEND;TZID={tz_name}:{dtend}\r\n"),
+        vtimezone,
+    ))
+}
+
+/// Shared VCALENDAR/VEVENT renderer. `dtstart_line`/`dtend_line` are complete
+/// `DTSTART…`/`DTEND…` property lines (UTC or TZID form); `vtimezone` is an
+/// optional VTIMEZONE block inserted before the VEVENT (empty string for none).
+fn render_ics(
+    details: &BookingDetails,
+    method: &str,
+    dtstart_line: &str,
+    dtend_line: &str,
+    vtimezone: &str,
+) -> String {
     let guest_first = first_name(&details.guest_name);
     let host_first = first_name(&details.host_name);
     let summary = sanitize_ics(&format!(
@@ -468,23 +561,17 @@ pub fn generate_ics(details: &BookingDetails, method: &str) -> String {
         .map(|email| format!("ATTENDEE;RSVP=TRUE:mailto:{}\r\n", sanitize_ics(email)))
         .collect();
     let dtstamp = chrono::Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
-    // Convert guest-timezone times to UTC for the ICS
-    let (dtstart, dtend) = convert_to_utc(
-        &details.date,
-        &details.start_time,
-        &details.end_time,
-        &details.guest_timezone,
-    );
     format!(
         "BEGIN:VCALENDAR\r\n\
          VERSION:2.0\r\n\
          PRODID:-//calrs//calrs//EN\r\n\
          {method_line}\
+         {vtimezone}\
          BEGIN:VEVENT\r\n\
          UID:{uid}\r\n\
          DTSTAMP:{dtstamp}\r\n\
-         DTSTART:{dtstart}\r\n\
-         DTEND:{dtend}\r\n\
+         {dtstart_line}\
+         {dtend_line}\
          SUMMARY:{summary}\r\n\
          {description_line}\
          {location_line}\
@@ -500,10 +587,11 @@ pub fn generate_ics(details: &BookingDetails, method: &str) -> String {
         } else {
             format!("METHOD:{method}\r\n")
         },
+        vtimezone = vtimezone,
         uid = details.uid,
         dtstamp = dtstamp,
-        dtstart = dtstart,
-        dtend = dtend,
+        dtstart_line = dtstart_line,
+        dtend_line = dtend_line,
         summary = summary,
         description_line = description_line,
         location_line = location_line,
@@ -2897,6 +2985,39 @@ mod tests {
         assert!(ics.contains("ORGANIZER;CN=Alice:mailto:alice@cal.rs"));
         assert!(ics.contains("ATTENDEE;CN=Jane Doe;RSVP=TRUE:mailto:jane@example.com"));
         assert!(ics.contains("STATUS:CONFIRMED"));
+    }
+
+    #[test]
+    fn generate_ics_localized_uses_tzid_not_utc() {
+        let details = BookingDetails {
+            event_title: "Intro Call".to_string(),
+            date: "2026-07-10".to_string(),
+            start_time: "10:00".to_string(),
+            end_time: "10:30".to_string(),
+            guest_name: "Jane Doe".to_string(),
+            guest_email: "jane@example.com".to_string(),
+            guest_timezone: "Europe/Paris".to_string(),
+            host_name: "Alice".to_string(),
+            host_email: "alice@cal.rs".to_string(),
+            uid: "tz-uid".to_string(),
+            ..Default::default()
+        };
+
+        let ics = generate_ics_localized(&details, "", "Europe/Lisbon");
+        // Local wall-clock with TZID, no trailing UTC 'Z' on the event times.
+        assert!(ics.contains("DTSTART;TZID=Europe/Lisbon:20260710T100000"));
+        assert!(ics.contains("DTEND;TZID=Europe/Lisbon:20260710T103000"));
+        assert!(!ics.contains("DTSTART:20260710T100000Z"));
+        // Inline VTIMEZONE so clients without the zone in their DB still resolve it.
+        assert!(ics.contains("BEGIN:VTIMEZONE"));
+        assert!(ics.contains("TZID:Europe/Lisbon"));
+        // Lisbon is UTC+1 (WEST) in July.
+        assert!(ics.contains("TZOFFSETTO:+0100"));
+
+        // Empty/unknown timezone falls back to the UTC form.
+        let fallback = generate_ics_localized(&details, "", "");
+        assert!(fallback.contains("DTSTART:20260710T090000Z"));
+        assert!(!fallback.contains("TZID="));
     }
 
     // Regression test for #49: DTSTAMP is REQUIRED in VEVENT by RFC 5545 §3.6.1.

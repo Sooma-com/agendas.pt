@@ -18376,7 +18376,18 @@ async fn caldav_push_booking(
         return;
     }
 
-    let ics = crate::email::generate_ics(details, "");
+    // Render the host's calendar copy in their profile timezone (not UTC) so the
+    // event shows at the right wall-clock with a local TZ label. generate_ics_localized
+    // falls back to UTC when the timezone is empty or unknown.
+    let host_tz: String =
+        sqlx::query_scalar("SELECT COALESCE(timezone, '') FROM users WHERE id = ?")
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await
+            .ok()
+            .flatten()
+            .unwrap_or_default();
+    let ics = crate::email::generate_ics_localized(details, "", &host_tz);
 
     for (
         source_id,
