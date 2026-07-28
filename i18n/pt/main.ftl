@@ -217,7 +217,9 @@ email-action-cancel-booking = Cancelar marcação
 
 # Email: guest booking confirmation
 
-email-confirm-subject = Confirmado: { $event } — { $date }
+# Mantido em "evento — data": o Exchange dá título ao compromisso do
+# convidado a partir do Subject do email, não do SUMMARY do ICS (#157).
+email-confirm-subject = { $event } — { $date }
 email-confirm-greeting = Olá { $name },
 email-confirm-headline = A sua marcação foi confirmada!
 email-confirm-ics-attached-plain = Segue em anexo um convite de calendário.
