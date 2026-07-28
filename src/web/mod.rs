@@ -24253,12 +24253,11 @@ mod tests {
             "should render in editing mode"
         );
         assert!(body.contains("My Source"), "name pre-filled");
-        // minijinja escapes '/' as '&#x2f;' in attribute values; check both the
-        // host and a path segment (which won't include slashes).
-        assert!(body.contains("example.com"), "url host pre-filled");
+        // The DAV URL is hardcoded server-side; the form no longer renders a
+        // URL field at all.
         assert!(
-            body.contains("dav") && body.contains("old"),
-            "url path pre-filled"
+            !body.contains("name=\"url\""),
+            "form must not render a url field"
         );
         assert!(body.contains("olduser"), "username pre-filled");
         assert!(
@@ -24274,7 +24273,7 @@ mod tests {
 
         let csrf = "test-csrf-update-source";
         let body = format!(
-            "_csrf={}&name=Renamed&url=https%3A%2F%2Fexample.com%2Fdav%2Fnew%2F&username=newuser&password=&no_test=on",
+            "_csrf={}&name=Renamed&username=newuser&password=&no_test=on",
             csrf
         );
         let response = app
@@ -24296,7 +24295,9 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(row.0, "Renamed");
-        assert_eq!(row.1, "https://example.com/dav/new/");
+        // The URL field was removed from the form; the stored URL must survive
+        // an update untouched.
+        assert_eq!(row.1, "https://example.com/dav/old/");
         assert_eq!(row.2, "newuser");
         // Decrypt the stored blob and confirm the password is unchanged.
         let pw = crate::crypto::decrypt_password(&[0u8; 32], &row.3).unwrap();
