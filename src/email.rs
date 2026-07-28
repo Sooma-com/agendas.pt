@@ -134,6 +134,10 @@ pub struct BookingDetails {
     /// `guest_timezone`, host-targeted emails display the wall-clock time
     /// converted into this zone. Empty string falls back to guest-zone display.
     pub host_timezone: String,
+    /// Shared resource(s) reserved for this booking (assigned resource in
+    /// round-robin mode, attached resources in 'all' mode). Rendered in
+    /// host-facing emails only; guests do not see internal resource names.
+    pub resource_name: Option<String>,
 }
 
 #[derive(Default)]
@@ -441,14 +445,21 @@ pub fn generate_ics(details: &BookingDetails, method: &str) -> String {
         &format!("DTSTART:{dtstart}\r\n"),
         &format!("DTEND:{dtend}\r\n"),
         "",
+        false,
     )
 }
 
-/// Like [`generate_ics`] but renders the event in `tz_name` (an IANA zone) using
-/// `DTSTART;TZID=…` plus an inline VTIMEZONE, so a calendar shows the booking in
-/// that timezone rather than UTC. Used for CalDAV write-back to the host's own
-/// calendar. Falls back to the UTC form when `tz_name` is empty or unparseable.
-pub fn generate_ics_localized(details: &BookingDetails, method: &str, tz_name: &str) -> String {
+/// ICS for CalDAV write-back (RFC 4791: no METHOD), rendered in `tz_name`
+/// (the host's IANA zone) via `DTSTART;TZID=…` plus an inline VTIMEZONE so
+/// the host's calendar shows the booking at local wall-clock time rather
+/// than UTC. ATTENDEE lines carry SCHEDULE-AGENT=CLIENT (RFC 6638 §7.1) so
+/// the CalDAV server does not run its own scheduling: calrs already sends
+/// the invitations over SMTP, and servers like Fastmail would otherwise
+/// send a duplicate iMIP invite (in UTC) for every written booking. Email
+/// .ics attachments keep plain ATTENDEE;RSVP=TRUE so mail clients still
+/// offer "Add to calendar". Falls back to UTC event times when `tz_name`
+/// is empty or unparseable.
+pub fn generate_ics_caldav(details: &BookingDetails, tz_name: &str) -> String {
     match local_dt_with_vtimezone(
         &details.date,
         &details.start_time,
@@ -456,9 +467,24 @@ pub fn generate_ics_localized(details: &BookingDetails, method: &str, tz_name: &
         tz_name,
     ) {
         Some((dtstart_line, dtend_line, vtimezone)) => {
-            render_ics(details, method, &dtstart_line, &dtend_line, &vtimezone)
+            render_ics(details, "", &dtstart_line, &dtend_line, &vtimezone, true)
         }
-        None => generate_ics(details, method),
+        None => {
+            let (dtstart, dtend) = convert_to_utc(
+                &details.date,
+                &details.start_time,
+                &details.end_time,
+                &details.guest_timezone,
+            );
+            render_ics(
+                details,
+                "",
+                &format!("DTSTART:{dtstart}\r\n"),
+                &format!("DTEND:{dtend}\r\n"),
+                "",
+                true,
+            )
+        }
     }
 }
 
@@ -521,6 +547,7 @@ fn render_ics(
     dtstart_line: &str,
     dtend_line: &str,
     vtimezone: &str,
+    schedule_agent_client: bool,
 ) -> String {
     let guest_first = first_name(&details.guest_name);
     let host_first = first_name(&details.host_name);
@@ -556,10 +583,15 @@ fn render_ics(
             )
         })
         .unwrap_or_default();
+    let sa = if schedule_agent_client {
+        ";SCHEDULE-AGENT=CLIENT"
+    } else {
+        ""
+    };
     let additional_attendee_lines: String = details
         .additional_attendees
         .iter()
-        .map(|email| format!("ATTENDEE;RSVP=TRUE:mailto:{}\r\n", sanitize_ics(email)))
+        .map(|email| format!("ATTENDEE{sa};RSVP=TRUE:mailto:{}\r\n", sanitize_ics(email)))
         .collect();
     let dtstamp = chrono::Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
     format!(
@@ -577,7 +609,7 @@ fn render_ics(
          {description_line}\
          {location_line}\
          ORGANIZER;CN={host_name}:mailto:{host_email}\r\n\
-         ATTENDEE;CN={guest_name};RSVP=TRUE:mailto:{guest_email}\r\n\
+         ATTENDEE{sa};CN={guest_name};RSVP=TRUE:mailto:{guest_email}\r\n\
          {additional_attendee_lines}\
          STATUS:CONFIRMED\r\n\
          {valarm}\
@@ -951,7 +983,7 @@ pub async fn send_host_notification(config: &SmtpConfig, details: &BookingDetail
          Date: {}\n\
          Time: {}\n\
          Guest: {} <{}>\n\
-         {}{}\n\
+         {}{}{}\n\
          A calendar invite is attached.\n\n\
          \u{2014} calrs",
         details.event_title,
@@ -968,6 +1000,11 @@ pub async fn send_host_notification(config: &SmtpConfig, details: &BookingDetail
             .notes
             .as_ref()
             .map(|n| format!("Notes: {}\n", n))
+            .unwrap_or_default(),
+        details
+            .resource_name
+            .as_ref()
+            .map(|r| format!("Resource: {}\n", r))
             .unwrap_or_default(),
     );
 
@@ -993,6 +1030,12 @@ pub async fn send_host_notification(config: &SmtpConfig, details: &BookingDetail
         rows.push(EmailRow {
             label: "Location".to_string(),
             value: loc.clone(),
+        });
+    }
+    if let Some(res) = &details.resource_name {
+        rows.push(EmailRow {
+            label: "Resource".to_string(),
+            value: res.clone(),
         });
     }
     if let Some(notes) = &details.notes {
@@ -1092,6 +1135,12 @@ pub async fn send_host_booking_confirmed(
         rows.push(EmailRow {
             label: "Location".to_string(),
             value: loc.clone(),
+        });
+    }
+    if let Some(res) = &details.resource_name {
+        rows.push(EmailRow {
+            label: "Resource".to_string(),
+            value: res.clone(),
         });
     }
 
@@ -1266,7 +1315,7 @@ pub async fn send_host_reminder(config: &SmtpConfig, details: &BookingDetails) -
             .unwrap_or_default(),
     );
 
-    let rows = vec![
+    let mut rows = vec![
         EmailRow {
             label: "Event".to_string(),
             value: details.event_title.clone(),
@@ -1284,6 +1333,12 @@ pub async fn send_host_reminder(config: &SmtpConfig, details: &BookingDetails) -
             value: format!("{} <{}>", details.guest_name, details.guest_email),
         },
     ];
+    if let Some(res) = &details.resource_name {
+        rows.push(EmailRow {
+            label: "Resource".to_string(),
+            value: res.clone(),
+        });
+    }
 
     let html = render_html_email(
         "Upcoming booking",
@@ -1744,6 +1799,12 @@ pub async fn send_host_approval_request(
         rows.push(EmailRow {
             label: "Location".to_string(),
             value: loc.clone(),
+        });
+    }
+    if let Some(res) = &details.resource_name {
+        rows.push(EmailRow {
+            label: "Resource".to_string(),
+            value: res.clone(),
         });
     }
     if let Some(notes) = &details.notes {
@@ -2989,7 +3050,7 @@ mod tests {
     }
 
     #[test]
-    fn generate_ics_localized_uses_tzid_not_utc() {
+    fn generate_ics_caldav_uses_tzid_not_utc() {
         let details = BookingDetails {
             event_title: "Intro Call".to_string(),
             date: "2026-07-10".to_string(),
@@ -3004,7 +3065,7 @@ mod tests {
             ..Default::default()
         };
 
-        let ics = generate_ics_localized(&details, "", "Europe/Lisbon");
+        let ics = generate_ics_caldav(&details, "Europe/Lisbon");
         // Local wall-clock with TZID, no trailing UTC 'Z' on the event times.
         assert!(ics.contains("DTSTART;TZID=Europe/Lisbon:20260710T100000"));
         assert!(ics.contains("DTEND;TZID=Europe/Lisbon:20260710T103000"));
@@ -3016,10 +3077,49 @@ mod tests {
         assert!(ics.contains("TZOFFSETTO:+0100"));
 
         // Empty/unknown timezone falls back to the UTC form.
-        let fallback = generate_ics_localized(&details, "", "");
+        let fallback = generate_ics_caldav(&details, "");
         // Falls back to UTC via the guest zone (Europe/Paris = UTC+2 in July).
         assert!(fallback.contains("DTSTART:20260710T080000Z"));
         assert!(!fallback.contains("TZID="));
+    }
+
+    // Regression test for #141: the CalDAV write-back variant must mark
+    // every ATTENDEE with SCHEDULE-AGENT=CLIENT (RFC 6638 §7.1) so servers
+    // like Fastmail do not send their own duplicate iMIP invite, while the
+    // email variant keeps plain ATTENDEE lines for "Add to calendar".
+    #[test]
+    fn generate_ics_caldav_marks_attendees_schedule_agent_client() {
+        let details = BookingDetails {
+            event_title: "Intro Call".to_string(),
+            date: "2026-03-10".to_string(),
+            start_time: "14:00".to_string(),
+            end_time: "14:30".to_string(),
+            guest_name: "Jane Doe".to_string(),
+            guest_email: "jane@example.com".to_string(),
+            guest_timezone: "Europe/Paris".to_string(),
+            host_name: "Alice".to_string(),
+            host_email: "alice@cal.rs".to_string(),
+            uid: "test-uid-141".to_string(),
+            notes: None,
+            location: None,
+            reminder_minutes: None,
+            additional_attendees: vec!["bob@example.com".to_string()],
+            ..Default::default()
+        };
+
+        let caldav = generate_ics_caldav(&details, "Europe/Lisbon");
+        assert!(!caldav.contains("METHOD:"), "CalDAV PUT must omit METHOD");
+        assert!(caldav.contains(
+            "ATTENDEE;SCHEDULE-AGENT=CLIENT;CN=Jane Doe;RSVP=TRUE:mailto:jane@example.com"
+        ));
+        assert!(caldav.contains("ATTENDEE;SCHEDULE-AGENT=CLIENT;RSVP=TRUE:mailto:bob@example.com"));
+
+        let email = generate_ics(&details, "REQUEST");
+        assert!(
+            !email.contains("SCHEDULE-AGENT"),
+            "email .ics must keep plain ATTENDEE lines"
+        );
+        assert!(email.contains("ATTENDEE;CN=Jane Doe;RSVP=TRUE:mailto:jane@example.com"));
     }
 
     // Regression test for #49: DTSTAMP is REQUIRED in VEVENT by RFC 5545 §3.6.1.
