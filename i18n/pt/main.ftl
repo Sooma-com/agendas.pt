@@ -269,7 +269,7 @@ team-switch-prefix = O assunto não é
 team-switch-mid = ? Agende com a equipa
 team-switch-or = ou
 
-# Footer attribution ("… Sooma Labs Beta · Sobre")
+# Footer attribution ("… Sooma Labs · Sobre")
 footer-powered-by = Com tecnologia de
 
 # Expand/collapse control on clamped team/profile descriptions

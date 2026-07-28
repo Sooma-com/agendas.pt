@@ -276,7 +276,7 @@ team-switch-prefix = This isn't about
 team-switch-mid = ? Book with
 team-switch-or = or
 
-# Footer attribution shown on non-Portuguese pages ("… Sooma Labs Beta · Source")
+# Footer attribution shown on non-Portuguese pages ("… Sooma Labs · Source")
 footer-powered-by = Powered by
 
 # Expand/collapse control on clamped team/profile descriptions

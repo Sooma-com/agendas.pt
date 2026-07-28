@@ -255,7 +255,7 @@ team-switch-prefix = Ce n'est pas
 team-switch-mid =  ? Réservez avec l'équipe
 team-switch-or = ou
 
-# Footer attribution shown on non-Portuguese pages ("… Sooma Labs Beta · Source")
+# Footer attribution shown on non-Portuguese pages ("… Sooma Labs · Source")
 footer-powered-by = Propulsé par
 
 # Expand/collapse control on clamped team/profile descriptions
