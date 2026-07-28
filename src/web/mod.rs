@@ -23731,7 +23731,7 @@ mod tests {
         );
         let response = app
             .oneshot(post_form_unauthed(
-                "/u/testuser/test-meeting/book",
+                "/testuser/test-meeting/book",
                 csrf,
                 &body,
             ))
